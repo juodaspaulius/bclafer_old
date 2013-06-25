@@ -1,0 +1,94 @@
+abstract IType 
+abstract TBoolean: IType
+abstract TString: IType
+abstract TInteger: IType
+abstract TReal: IType
+abstract TClafer: IType
+  String *
+
+abstract IModule
+  mName : String
+  mDecls : IElement *
+
+abstract IClafer
+  cinPos -> Span
+  isAbstract ?
+  gcard -> IGCard ?
+  ident : String
+  uid : String
+  super -> ISuper
+  card -> Interval ?
+  glCard -> Interval
+  elements -> IElement *
+
+abstract IElement
+
+abstract IEClafer : IElement
+abstract IEConstraint : IElement
+  isHard ?
+  cpexp -> PExp
+abstract IEGoal : IElement
+  isMaximize ?
+  cpexp -> PExp
+
+abstract ISuper
+  isOverlapping ?
+  supers -> PExp *
+
+abstract IGCard 
+  isKeyword ?
+  interval -> Interval
+
+abstract Interval
+  int1 -> Interval
+  int2 -> Interval
+
+abstract PExp
+  iType -> IType ?
+  pid : String
+  inPos -> Span
+  exp -> IExp
+
+
+// IExp and derivatives
+abstract IExp
+
+abstract IDeclPExp : IExp
+  quant -> IQuant
+  oDecls -> IDecl *
+  bpexp -> PExp
+
+abstract IFunExp : IExp
+  op : String
+  exps -> PExp*
+
+abstract IInt : IExp
+  value : Integer
+
+abstract IDouble : IExp
+  value : Double
+
+abstract IStr : IExp
+  value : String
+
+abstract IClaferId : IExp
+  modName : String
+  sident : String
+  isTop ?
+// end of IExp
+
+abstract IDecl
+  isDisj ?
+  decls : String *
+  body -> PExp
+  
+abstract IQuant
+abstract INo : IQuant
+abstract ILone : IQuant
+abstract IOne : IQuant
+abstract ISome : IQuant
+abstract IAll : IQuant
+
+abstract LineNo : Integer
+abstract ColNo : Integer
+

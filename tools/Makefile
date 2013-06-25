@@ -13,9 +13,9 @@ endif
 
 all:
 
-	@if [[ "$(UNAME)"=="mingw32_nt-6.1" && -z "$(shell which wget)" ]] ; then \
-		mingw-get install msys-wget-bin; \
-	fi
+	#@if [[ "$(UNAME)"=="mingw32_nt-6.1" && -z "$(shell which wget)" ]] ; then \
+		#mingw-get install msys-wget-bin; \
+	#fi
 
 	@if test ! -f "alloy4.jar"; then \
 		echo "[WARNING] Missing alloy4.jar. Downloading...";  \

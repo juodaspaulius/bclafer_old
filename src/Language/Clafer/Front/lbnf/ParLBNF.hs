@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -w #-}
 {-# OPTIONS -fglasgow-exts -cpp #-}
-{-# OPTIONS -fno-warn-incomplete-patterns -fno-warn-overlapping-patterns #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns -fno-warn-overlapping-patterns #-}
 module ParLBNF where
 import AbsLBNF
 import LexLBNF
@@ -8,7 +8,7 @@ import ErrM
 import qualified Data.Array as Happy_Data_Array
 import qualified GHC.Exts as Happy_GHC_Exts
 
--- parser produced by Happy Version 1.18.6
+-- parser produced by Happy Version 1.18.10
 
 newtype HappyAbsSyn  = HappyAbsSyn HappyAny
 #if __GLASGOW_HASKELL__ >= 607
@@ -1268,7 +1268,8 @@ happyNewToken action sts stk (tk:tks) =
 	_ -> happyError' (tk:tks)
 	}
 
-happyError_ tk tks = happyError' (tk:tks)
+happyError_ 46# tk tks = happyError' tks
+happyError_ _ tk tks = happyError' (tk:tks)
 
 happyThen :: () => Err a -> (a -> Err b) -> Err b
 happyThen = (thenM)
@@ -1396,7 +1397,6 @@ happyError ts =
 myLexer = tokens
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
-{-# LINE 1 "<built-in>" #-}
 {-# LINE 1 "<command-line>" #-}
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 -- Id: GenericTemplate.hs,v 1.26 2005/01/14 14:47:22 simonmar Exp 
@@ -1581,9 +1581,10 @@ happyGoto nt j tk st =
 -- Error recovery (0# is the error token)
 
 -- parse error if we are in recovery and we fail again
-happyFail  0# tk old_st _ stk =
+happyFail 0# tk old_st _ stk@(x `HappyStk` _) =
+     let (i) = (case Happy_GHC_Exts.unsafeCoerce# x of { (Happy_GHC_Exts.I# (i)) -> i }) in
 --	trace "failing" $ 
-    	happyError_ tk
+        happyError_ i tk
 
 {-  We don't need state discarding for our restricted implementation of
     "error".  In fact, it can cause some bogus parses, so I've disabled it

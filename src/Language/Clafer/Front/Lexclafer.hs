@@ -6,6 +6,8 @@ module Language.Clafer.Front.Lexclafer where
 
 
 
+import qualified Data.Bits
+import Data.Word (Word8)
 
 #if __GLASGOW_HASKELL__ >= 603
 #include "ghcconfig.h"
@@ -37,8 +39,8 @@ alex_check = AlexA# "\xff\xff\x09\x00\x0a\x00\x0b\x00\x0c\x00\x0d\x00\x2d\x00\x2
 alex_deflt :: AlexAddr
 alex_deflt = AlexA# "\xff\xff\x0c\x00\x0c\x00\xff\xff\xff\xff\x0c\x00\x0c\x00\x0d\x00\x0d\x00\x10\x00\xff\xff\x10\x00\x0c\x00\x16\x00\x16\x00\xff\xff\x10\x00\xff\xff\xff\xff\xff\xff\x17\x00\x17\x00\x17\x00\x17\x00\xff\xff\x0c\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"#
 
-alex_accept = listArray (0::Int,42) [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[(AlexAccSkip)],[(AlexAccSkip)],[(AlexAccSkip)],[(AlexAccSkip)],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_4))],[(AlexAcc (alex_action_5))],[(AlexAcc (alex_action_5))],[(AlexAcc (alex_action_6))],[(AlexAcc (alex_action_7))]]
-{-# LINE 39 "Lexclafer.x" #-}
+alex_accept = listArray (0::Int,42) [AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccSkip,AlexAccSkip,AlexAccSkip,AlexAccSkip,AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_3),AlexAcc (alex_action_4),AlexAcc (alex_action_5),AlexAcc (alex_action_5),AlexAcc (alex_action_6),AlexAcc (alex_action_7)]
+{-# LINE 41 "Lexclafer.x" #-}
 
 
 tok f p s = f p s
@@ -69,6 +71,9 @@ tokenPos (PT (Pn _ l _) _ :_) = "line " ++ show l
 tokenPos (Err (Pn _ l _) :_) = "line " ++ show l
 tokenPos _ = "end of file"
 
+tokenPosn (PT p _) = p
+tokenPosn (Err p) = p
+tokenLineCol = posLineCol . tokenPosn
 posLineCol (Pn _ l c) = (l,c)
 mkPosToken t@(PT p _) = (posLineCol p, prToken t)
 
@@ -125,35 +130,57 @@ alexMove (Pn a l c) '\t' = Pn (a+1)  l     (((c+7) `div` 8)*8+1)
 alexMove (Pn a l c) '\n' = Pn (a+1) (l+1)   1
 alexMove (Pn a l c) _    = Pn (a+1)  l     (c+1)
 
+type Byte = Word8
+
 type AlexInput = (Posn,     -- current position,
                   Char,     -- previous char
+                  [Byte],   -- pending bytes on the current char
                   String)   -- current input string
 
 tokens :: String -> [Token]
-tokens str = go (alexStartPos, '\n', str)
+tokens str = go (alexStartPos, '\n', [], str)
     where
       go :: AlexInput -> [Token]
-      go inp@(pos, _, str) =
+      go inp@(pos, _, _, str) =
                case alexScan inp 0 of
-                AlexEOF                -> []
-                AlexError (pos, _, _)  -> [Err pos]
-                AlexSkip  inp' len     -> go inp'
-                AlexToken inp' len act -> act pos (take len str) : (go inp')
+                AlexEOF                   -> []
+                AlexError (pos, _, _, _)  -> [Err pos]
+                AlexSkip  inp' len        -> go inp'
+                AlexToken inp' len act    -> act pos (take len str) : (go inp')
 
-alexGetChar :: AlexInput -> Maybe (Char,AlexInput)
-alexGetChar (p, _, s) =
+alexGetByte :: AlexInput -> Maybe (Byte,AlexInput)
+alexGetByte (p, c, (b:bs), s) = Just (b, (p, c, bs, s))
+alexGetByte (p, _, [], s) =
   case  s of
     []  -> Nothing
     (c:s) ->
-             let p' = alexMove p c
-              in p' `seq` Just (c, (p', c, s))
-
-alexGetByte :: AlexInput -> Maybe (Int,AlexInput)
-alexGetByte i = fmap f (alexGetChar i)
-  where f (c, i') = (fromEnum c, i')
+             let p'     = alexMove p c
+                 (b:bs) = utf8Encode c
+              in p' `seq` Just (b, (p', c, bs, s))
 
 alexInputPrevChar :: AlexInput -> Char
-alexInputPrevChar (p, c, s) = c
+alexInputPrevChar (p, c, bs, s) = c
+
+  -- | Encode a Haskell String to a list of Word8 values, in UTF8 format.
+utf8Encode :: Char -> [Word8]
+utf8Encode = map fromIntegral . go . ord
+ where
+  go oc
+   | oc <= 0x7f       = [oc]
+
+   | oc <= 0x7ff      = [ 0xc0 + (oc `Data.Bits.shiftR` 6)
+                        , 0x80 + oc Data.Bits..&. 0x3f
+                        ]
+
+   | oc <= 0xffff     = [ 0xe0 + (oc `Data.Bits.shiftR` 12)
+                        , 0x80 + ((oc `Data.Bits.shiftR` 6) Data.Bits..&. 0x3f)
+                        , 0x80 + oc Data.Bits..&. 0x3f
+                        ]
+   | otherwise        = [ 0xf0 + (oc `Data.Bits.shiftR` 18)
+                        , 0x80 + ((oc `Data.Bits.shiftR` 12) Data.Bits..&. 0x3f)
+                        , 0x80 + ((oc `Data.Bits.shiftR` 6) Data.Bits..&. 0x3f)
+                        , 0x80 + oc Data.Bits..&. 0x3f
+                        ]
 
 alex_action_3 =  tok (\p s -> PT p (eitherResIdent (TV . share) s)) 
 alex_action_4 =  tok (\p s -> PT p (eitherResIdent (T_PosInteger . share) s)) 
@@ -164,7 +191,6 @@ alex_action_8 =  tok (\p s -> PT p (eitherResIdent (TV . share) s))
 alex_action_9 =  tok (\p s -> PT p (TI $ share s))    
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
-{-# LINE 1 "<built-in>" #-}
 {-# LINE 1 "<command-line>" #-}
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
@@ -176,9 +202,9 @@ alex_action_9 =  tok (\p s -> PT p (TI $ share s))
 -- -----------------------------------------------------------------------------
 -- INTERNALS and main scanner engine
 
-{-# LINE 37 "templates/GenericTemplate.hs" #-}
+{-# LINE 35 "templates/GenericTemplate.hs" #-}
 
-{-# LINE 47 "templates/GenericTemplate.hs" #-}
+{-# LINE 45 "templates/GenericTemplate.hs" #-}
 
 
 data AlexAddr = AlexA# Addr#
@@ -209,14 +235,14 @@ alexIndexInt32OffAddr (AlexA# arr) off =
 #ifdef WORDS_BIGENDIAN
   narrow32Int# i
   where
-   !i    = word2Int# ((b3 `uncheckedShiftL#` 24#) `or#`
+   i    = word2Int# ((b3 `uncheckedShiftL#` 24#) `or#`
 		     (b2 `uncheckedShiftL#` 16#) `or#`
 		     (b1 `uncheckedShiftL#` 8#) `or#` b0)
-   !b3   = int2Word# (ord# (indexCharOffAddr# arr (off' +# 3#)))
-   !b2   = int2Word# (ord# (indexCharOffAddr# arr (off' +# 2#)))
-   !b1   = int2Word# (ord# (indexCharOffAddr# arr (off' +# 1#)))
-   !b0   = int2Word# (ord# (indexCharOffAddr# arr off'))
-   !off' = off *# 4#
+   b3   = int2Word# (ord# (indexCharOffAddr# arr (off' +# 3#)))
+   b2   = int2Word# (ord# (indexCharOffAddr# arr (off' +# 2#)))
+   b1   = int2Word# (ord# (indexCharOffAddr# arr (off' +# 1#)))
+   b0   = int2Word# (ord# (indexCharOffAddr# arr off'))
+   off' = off *# 4#
 #else
   indexInt32OffAddr# arr off
 #endif
@@ -291,35 +317,29 @@ alex_scan_tkn user orig_input len input s last_acc =
 
 
 
-	let
-		(base) = alexIndexInt32OffAddr alex_base s
-		((I# (ord_c))) = fromIntegral c
-		(offset) = (base +# ord_c)
-		(check)  = alexIndexInt16OffAddr alex_check offset
+      case fromIntegral c of { (I# (ord_c)) ->
+        let
+                base   = alexIndexInt32OffAddr alex_base s
+                offset = (base +# ord_c)
+                check  = alexIndexInt16OffAddr alex_check offset
 		
-		(new_s) = if (offset >=# 0#) && (check ==# ord_c)
+                new_s = if (offset >=# 0#) && (check ==# ord_c)
 			  then alexIndexInt16OffAddr alex_table offset
 			  else alexIndexInt16OffAddr alex_deflt s
 	in
-	case new_s of 
+        case new_s of
 	    -1# -> (new_acc, input)
 		-- on an error, we want to keep the input *before* the
 		-- character that failed, not after.
     	    _ -> alex_scan_tkn user orig_input (if c < 0x80 || c >= 0xC0 then (len +# 1#) else len)
                                                 -- note that the length is increased ONLY if this is the 1st byte in a char encoding)
 			new_input new_s new_acc
-
+      }
   where
-	check_accs [] = last_acc
-	check_accs (AlexAcc a : _) = AlexLastAcc a input (I# (len))
-	check_accs (AlexAccSkip : _)  = AlexLastSkip  input (I# (len))
-	check_accs (AlexAccPred a predx : rest)
-	   | predx user orig_input (I# (len)) input
-	   = AlexLastAcc a input (I# (len))
-	check_accs (AlexAccSkipPred predx : rest)
-	   | predx user orig_input (I# (len)) input
-	   = AlexLastSkip input (I# (len))
-	check_accs (_ : rest) = check_accs rest
+	check_accs (AlexAccNone) = last_acc
+	check_accs (AlexAcc a  ) = AlexLastAcc a input (I# (len))
+	check_accs (AlexAccSkip) = AlexLastSkip  input (I# (len))
+{-# LINE 191 "templates/GenericTemplate.hs" #-}
 
 data AlexLastAcc a
   = AlexNone
@@ -332,35 +352,10 @@ instance Functor AlexLastAcc where
     fmap f (AlexLastSkip x y) = AlexLastSkip x y
 
 data AlexAcc a user
-  = AlexAcc a
+  = AlexAccNone
+  | AlexAcc a
   | AlexAccSkip
-  | AlexAccPred a (AlexAccPred user)
-  | AlexAccSkipPred (AlexAccPred user)
-
-type AlexAccPred user = user -> AlexInput -> Int -> AlexInput -> Bool
-
--- -----------------------------------------------------------------------------
--- Predicates on a rule
-
-alexAndPred p1 p2 user in1 len in2
-  = p1 user in1 len in2 && p2 user in1 len in2
-
---alexPrevCharIsPred :: Char -> AlexAccPred _ 
-alexPrevCharIs c _ input _ _ = c == alexInputPrevChar input
-
-alexPrevCharMatches f _ input _ _ = f (alexInputPrevChar input)
-
---alexPrevCharIsOneOfPred :: Array Char Bool -> AlexAccPred _ 
-alexPrevCharIsOneOf arr _ input _ _ = arr ! alexInputPrevChar input
-
---alexRightContext :: Int -> AlexAccPred _
-alexRightContext (I# (sc)) user _ _ input = 
-     case alex_scan_tkn user input 0# input sc AlexNone of
-	  (AlexNone, _) -> False
-	  _ -> True
-	-- TODO: there's no need to find the longest
-	-- match when checking the right context, just
-	-- the first match will do.
+{-# LINE 235 "templates/GenericTemplate.hs" #-}
 
 -- used by wrappers
 iUnbox (I# (i)) = i
