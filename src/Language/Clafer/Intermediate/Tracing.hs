@@ -95,7 +95,7 @@ traverseDeclaration x =
 
 traverseClafer x@(PosClafer s a b _ d e f g) = AstClafer x : (traverseAbstract a ++ traverseGCard b ++ traverseSuper d ++ traverseCard e ++ traverseInit f ++ traverseElements g)
 
-traverseConstraint x@(PosConstraint s e) = AstConstraint x : concatMap traverseExp e
+traverseConstraint x@(PosConstraint s e) = AstConstraint x : concatMap traverseConstrExp e
 
 traverseSoftConstraint x@(PosSoftConstraint s e) = AstSoftConstraint x : concatMap traverseExp e
 
@@ -163,6 +163,15 @@ traverseExInteger x =
   AstExInteger x : [{- no other children -}]
 
 traverseName x@(PosPath _ m) = AstName x : concatMap traverseModId m
+
+traverseConstrExp x = AstConstrExp x : case x of  
+    PosTmpPrecedes _ e1 e2 _ -> traverseExp e1 ++ traverseExp e2
+    PosTmpRespondsTo _ e1 e2 _ -> traverseExp e1 ++ traverseExp e2
+    PosTmpAbsence _ e _ -> traverseExp e 
+    PosTmpExistence _ e _ -> traverseExp e
+    PosTmpBoundedExistence _ e _ _ -> traverseExp e
+    PosNonPatternsExp _ e -> traverseExp e
+    PosImmutableConstr _ _ -> []
 
 traverseExp x =
   AstExp x :
@@ -233,6 +242,7 @@ data Ast =
   AstModule Module |
   AstDeclaration Declaration |
   AstClafer Clafer |
+  AstConstrExp ConstrExp |
   AstConstraint Constraint |
   AstSoftConstraint SoftConstraint |
   AstGoal Goal |

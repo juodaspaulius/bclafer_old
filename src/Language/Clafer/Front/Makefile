@@ -22,6 +22,7 @@ all:
 clean:
 	-rm -f *.log *.aux *.hi *.o *.dvi
 	-rm -f Docclafer.ps
+	-rm -f Parclafer.y Lexclafer.x
 distclean: clean
 	-rm -f Docclafer.* Lexclafer.* Parclafer.* Layoutclafer.* Skelclafer.* Printclafer.* Testclafer.* Absclafer.* Testclafer ErrM.* SharedString.* clafer.dtd XMLclafer.* Makefile*
 

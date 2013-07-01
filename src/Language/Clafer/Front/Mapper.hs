@@ -140,6 +140,36 @@ instance Mappable Constraint where
   range (PosConstraint s _) = s
 
 
+instance Mappable ConstrExp where
+  mapNode (TmpPrecedes e e' ts) = doMap3 PosTmpPrecedes e e' ts
+  mapNode (TmpRespondsTo e e' ts) = doMap3 PosTmpRespondsTo e e' ts
+  mapNode (TmpAbsence e ts) = doMap2 PosTmpAbsence e ts
+  mapNode (TmpExistence e ts) = doMap2 PosTmpExistence e ts
+  mapNode (TmpBoundedExistence e numb ts) = doMap3 PosTmpBoundedExistence e numb ts
+  mapNode (NonPatternsExp e) = doMap PosNonPatternsExp e
+  mapNode (ImmutableConstr im) = doMap PosImmutableConstr im
+  range (PosTmpPrecedes s _ _ _) = s
+  range (PosTmpRespondsTo s _ _ _) = s
+  range (PosTmpAbsence s _ _) = s
+  range (PosTmpExistence s _ _) = s
+  range (PosTmpBoundedExistence s _ _ _) = s
+  range (PosNonPatternsExp s _) = s
+  range (PosImmutableConstr s _) = s
+
+
+instance Mappable TmpScope where
+  mapNode (TmpScopeGlobally) = PosTmpScopeGlobally noSpan
+  mapNode (TmpScopeBefore e) = PosTmpScopeBefore noSpan e
+  mapNode (TmpScopeAfter e) = PosTmpScopeAfter noSpan e
+  mapNode (TmpScopeBetweenAnd e e') = PosTmpScopeBetweenAnd noSpan e e'
+  mapNode (TmpScopeAfterUntil e e') = PosTmpScopeAfterUntil noSpan e e'
+  range (PosTmpScopeGlobally s) = s
+  range (PosTmpScopeBefore s _) = s
+  range (PosTmpScopeAfter s _) = s
+  range (PosTmpScopeBetweenAnd s _ _) = s
+  range (PosTmpScopeAfterUntil s _ _) = s
+
+
 instance Mappable SoftConstraint where
   mapNode (PosSoftConstraint s e) = doMapWithSpan PosSoftConstraint s e
   range (PosSoftConstraint s _) = s
@@ -283,7 +313,6 @@ instance Mappable NCard where
   mapNode (NCard l h) = doMap2 PosNCard l h
   range (PosNCard s _ _) = s
   
-  
 instance Mappable Card where
   mapNode CardEmpty        = PosCardEmpty noSpan
   mapNode x@PosCardLone{}  = x
@@ -375,6 +404,9 @@ instance Mappable PosDouble where
     c' = toInteger c
     l' = toInteger l
   
+instance Mappable PosImmutable where
+  mapNode = id
+  range (PosImmutable ((c, l), lex)) = tokenSpan c l lex
   
 instance Mappable PosInteger where
   mapNode = id  
@@ -384,5 +416,9 @@ instance Mappable PosInteger where
     c' = toInteger c
     l' = toInteger l
 
+tokenSpan c l lex = Span (Pos c' l') (Pos c' $ l' + len lex)
+    where
+    c' = toInteger c
+    l' = toInteger l
 
 len = toInteger . length

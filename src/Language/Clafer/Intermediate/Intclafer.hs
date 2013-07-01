@@ -55,6 +55,7 @@ data IClafer =
       super:: ISuper,         -- superclafers
       card :: Maybe Interval, -- cardinality
       glCard :: Interval,     -- (o) global cardinality
+      mutable :: Bool,        -- clafer is mutable: can change over time, by default all are mutable 
       elements :: [IElement]  -- subclafers or constraints specified in the context of given clafer
     }
   deriving (Eq,Ord,Show)

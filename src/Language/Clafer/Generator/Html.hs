@@ -308,9 +308,12 @@ printConstraint (PosConstraint span exps) indent irMap html comments = printCons
 printConstraint' exp indent irMap html comments = 
     while html "<span class=\"keyword\">" ++ "[" ++ while html "</span>" ++
     " " ++ 
-    printExp exp indent irMap html comments ++ 
+    printConstrExp exp indent irMap html comments ++ 
     " " ++ 
     while html "<span class=\"keyword\">" ++ "]" ++ while html "</span>"
+
+printConstrExp cExp indent irMap html comments = case cExp of 
+    NonPatternsExp exp -> printExp exp indent irMap html comments
 
 printSoftConstraint (SoftConstraint exps) indent irMap html comments = concatMap (\x -> printSoftConstraint' x indent irMap html comments) exps
 printSoftConstraint (PosSoftConstraint _ exps) indent irMap html comments = printSoftConstraint (SoftConstraint exps) indent irMap html comments

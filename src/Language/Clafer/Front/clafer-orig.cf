@@ -1,3 +1,4 @@
+
 entrypoints Module ;
 
 
@@ -17,22 +18,49 @@ EnumDecl.       Declaration ::= "enum" PosIdent "=" [EnumId] ;
 ElementDecl.    Declaration ::= Element ;
 
 Clafer.         Clafer ::= Abstract GCard PosIdent Super Card Init Elements ;
-Constraint.     Constraint ::= "[" [Exp] "]" ;
+Constraint.     Constraint ::= "[" [ConstrExp] "]" ;
 SoftConstraint. SoftConstraint ::= "(" [Exp] ")";
-Goal.   	Goal ::= "<<" [Exp] ">>" ;
+Goal.		Goal ::= "<<" [Exp] ">>" ;
 
+-- Scopes of Temporal Patterns - BEGIN
+TmpScopeGlobally.	TmpScope ::= "globally" ;
+TmpScopeGlobally.	TmpScope ::=  ;
+TmpScopeBefore.		TmpScope ::= "before" Exp ;
+TmpScopeAfter.		TmpScope ::= "after" Exp ;
+TmpScopeBetweenAnd.	TmpScope ::= "between" Exp "and" Exp ;
+TmpScopeAfterUntil.	TmpScope ::= "after" Exp "until" Exp ;
+
+-- Scopes of Temporal Patterns - END
+
+-- List of Temporal Patterns - BEGIN
+TmpPrecedes.	        ConstrExp ::= Exp "precedes" Exp TmpScope;
+TmpRespondsTo.      	ConstrExp ::= Exp "respondsTo" Exp TmpScope;
+TmpRespondsTo.	        ConstrExp ::= Exp "responds" "to" Exp TmpScope;
+
+TmpAbsence.	            ConstrExp ::= Exp "is" "false" TmpScope ;
+TmpExistence.	        ConstrExp ::= Exp "is" "true" TmpScope ;
+TmpBoundedExistence.	ConstrExp ::= Exp "is" "true" PosInteger "times" TmpScope ;
+
+-- Non pattern constraint
+NonPatternsExp.		ConstrExp ::= Exp;
+
+-- List of Temporal Patterns - END
+
+-- Immutable constraint
+ImmutableConstr.	ConstrExp ::= PosImmutable;
 
 AbstractEmpty.  Abstract ::= ;
 Abstract.       Abstract ::= "abstract" ;
 
 -- ElementsEmpty causes parsing problems
+-- Why does this happen???
 ElementsEmpty.  Elements ::= ;
 ElementsList.   Elements ::= "{" [Element] "}" ;
 
 Subclafer.      Element ::= Clafer ;
 ClaferUse.      Element ::= "`" Name Card Elements ;
 Subconstraint.  Element ::= Constraint ;
-Subgoal. 	Element ::= Goal; 
+Subgoal.	    Element ::= Goal; 
 Subsoftconstraint. Element ::=SoftConstraint;
 
 SuperEmpty.     Super ::=  ;
@@ -69,6 +97,8 @@ ExIntegerNum.   ExInteger ::= PosInteger ;
 
 Path.           Name ::= [ModId] ;
 
+-- LTL precedence order: <AP>, !, X, G, F, W, U, R, &&, ||, => 
+
 DeclAllDisj.    Exp   ::= "all" "disj" Decl "|" Exp ;
 DeclAll.        Exp   ::= "all"        Decl "|" Exp ;
 DeclQuantDisj.  Exp   ::= Quant "disj" Decl "|" Exp ;
@@ -80,28 +110,34 @@ EImplies.       Exp2  ::= Exp2 "=>"  Exp3 ;
 EOr.            Exp3  ::= Exp3 "||"  Exp4 ;
 EXor.           Exp4  ::= Exp4 "xor" Exp5 ;
 EAnd.           Exp5  ::= Exp5 "&&"  Exp6 ;
-ENeg.           Exp6  ::= "!" Exp7 ;
-ELt.            Exp7  ::= Exp7 "<"  Exp8 ;
-EGt.            Exp7  ::= Exp7 ">"  Exp8 ;
-EEq.            Exp7  ::= Exp7 "="  Exp8 ;
-ELte.           Exp7  ::= Exp7 "<=" Exp8 ;
-EGte.           Exp7  ::= Exp7 ">=" Exp8 ;
-ENeq.           Exp7  ::= Exp7 "!=" Exp8 ;
-EIn.            Exp7  ::= Exp7 "in" Exp8 ;
-ENin.           Exp7  ::= Exp7 "not" "in" Exp8 ;
-QuantExp.       Exp8  ::= Quant Exp12 ;
-EAdd.           Exp9  ::= Exp9  "+" Exp10 ;
-ESub.           Exp9  ::= Exp9  "-" Exp10 ;
-EMul.           Exp10 ::= Exp10 "*" Exp11 ;
-EDiv.           Exp10 ::= Exp10 "/" Exp11 ;
-ESumSetExp.     Exp11 ::= "sum" Exp12;
-ECSetExp.       Exp11 ::= "#" Exp12 ;
-EMinExp.        Exp11 ::= "-" Exp12 ;
-EImpliesElse.   Exp12 ::= "if" Exp12 "then" Exp12 "else" Exp13 ;
-EInt.           Exp13 ::= PosInteger ;
-EDouble.        Exp13 ::= PosDouble ;
-EStr.           Exp13 ::= PosString ;
-ESetExp.        Exp13 ::= SetExp ;
+LtlRel.         Exp6  ::= Exp6 "R"  Exp7 ;
+LtlUntil.       Exp6  ::= Exp6 "U"  Exp7 ;
+LtlWUntil.      Exp6  ::= Exp6 "W"  Exp7 ;
+LtlF.           Exp7  ::= "F"  Exp8 ;
+LtlG.           Exp7  ::= "G"  Exp8 ;
+LtlX.           Exp8  ::= "X"  Exp9 ;
+ENeg.           Exp9  ::= "!" Exp10 ;
+ELt.            Exp10  ::= Exp10 "<"  Exp11 ;
+EGt.            Exp10  ::= Exp10 ">"  Exp11 ;
+EEq.            Exp10  ::= Exp10 "="  Exp11 ;
+ELte.           Exp10  ::= Exp10 "<=" Exp11 ;
+EGte.           Exp10  ::= Exp10 ">=" Exp11 ;
+ENeq.           Exp10  ::= Exp10 "!=" Exp11 ;
+EIn.            Exp10  ::= Exp10 "in" Exp11 ;
+ENin.           Exp10  ::= Exp10 "not" "in" Exp11 ;
+QuantExp.       Exp11  ::= Quant Exp15 ;
+EAdd.           Exp12  ::= Exp12  "+" Exp13 ;
+ESub.           Exp12  ::= Exp12  "-" Exp13 ;
+EMul.           Exp13 ::= Exp13 "*" Exp14 ;
+EDiv.           Exp13 ::= Exp13 "/" Exp14 ;
+ESumSetExp.     Exp14 ::= "sum" Exp15;
+ECSetExp.       Exp14 ::= "#" Exp15 ;
+EMinExp.        Exp14 ::= "-" Exp15 ;
+EImpliesElse.   Exp15 ::= "if" Exp15 "then" Exp15 "else" Exp16 ;
+EInt.           Exp16 ::= PosInteger ;
+EDouble.        Exp16 ::= PosDouble ;
+EStr.           Exp16 ::= PosString ;
+ESetExp.        Exp16 ::= SetExp ;
 
 Union.          SetExp  ::= SetExp  "++" SetExp1 ;
 UnionCom.       SetExp  ::= SetExp  ","  SetExp1 ;
@@ -130,13 +166,25 @@ separator           Declaration ""  ;
 separator  nonempty EnumId      "|" ;
 separator           Element     ""  ;
 separator           Exp         ""  ;
+separator           ConstrExp         ""  ;
 separator  nonempty LocId       ";" ;
 separator  nonempty ModId       "\\" ;
 
-coercions Exp 13 ;
+coercions Exp 16 ;
 coercions SetExp 6 ;
+
+--QuantNo.        Quant ::=  No ;
+--position token No ('n' 'o');
+
+
+
+-- This is the same as the following rule?
+--position token Immutable ('i' 'm' 'm' 'u' 't' 'a' 'b' 'l' 'e') ;
+
+position token PosImmutable {"immutable"} ;
 
 position token PosInteger (digit+) ;
 position token PosDouble (digit+ '.' digit+ ('e' '-'? digit+)?) ;
 position token PosString '"' ((char - ["\"\\"]) | ('\\' ["\"\\nt"]))* '"' ;
 position token PosIdent (letter (letter|digit|'_'|'\'')*) ;
+

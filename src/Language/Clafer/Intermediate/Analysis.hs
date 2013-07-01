@@ -49,27 +49,27 @@ import Data.Maybe
 
 newtype AnalysisT m a = AnalysisT (ReaderT Info m a)
   deriving (Monad, Functor, MonadReader Info, MonadState s, MonadTrans, MonadPlus, MonadError e, Applicative)
-  
+
 type Analysis = AnalysisT Identity
 
 class (Monad m, Functor m) => MonadAnalysis m where
   clafers :: m [SClafer]
   withClafers :: [SClafer] -> m a -> m a
-  
+
 withExtraClafers :: MonadAnalysis m => [SClafer] -> m a -> m a
 withExtraClafers cs a =
     do
         c <- clafers
         withClafers (cs ++ c) a
-  
+
 instance (Monad m, Functor m) => MonadAnalysis (AnalysisT m) where
   clafers = AnalysisT $ asks sclafers
   withClafers cs = local (const $ Info cs)
-    
+
 instance (Error e, MonadAnalysis m) => MonadAnalysis (ErrorT e m) where
   clafers = lift clafers
   withClafers = mapErrorT . withClafers
-  
+
 instance MonadAnalysis m => MonadAnalysis (ListT m) where
   clafers = lift clafers
   withClafers = mapListT . withClafers
@@ -85,11 +85,11 @@ instance MonadAnalysis m => MonadAnalysis (ReaderT r m) where
 instance (Monoid w, MonadAnalysis m) => MonadAnalysis (WriterT w m) where
   clafers = lift clafers
   withClafers = mapWriterT . withClafers
-  
+
 instance MonadAnalysis m => MonadAnalysis (VSupplyT m) where
   clafers = lift clafers
   withClafers = mapVSupplyT . withClafers
-  
+
 isConcrete :: SClafer -> Bool
 isConcrete = not . isAbstract
 
@@ -98,13 +98,13 @@ isBase = (`elem` ["clafer", "string", "real", "int", "integer", "boolean"]) . ui
 
 isDerived :: SClafer -> Bool
 isDerived = not . isBase
- 
+
 
 data SSuper = Ref String | Colon String deriving Show
 -- Easier to work with. IClafers have links from parents to children. SClafers have links from children to parent.
 data SClafer = SClafer {uid::String, origUid::String, isAbstract::Bool, low::Integer, high::Integer, groupLow::Integer, groupHigh::Integer, parent::Maybe String, super::Maybe SSuper, constraints::[I.PExp]} deriving Show
-  
-data Info = Info{sclafers :: [SClafer]} deriving Show 
+
+data Info = Info{sclafers :: [SClafer]} deriving Show
 
 runAnalysis :: Analysis a -> Info -> a
 runAnalysis r info = runIdentity $ runAnalysisT r info
@@ -119,13 +119,13 @@ claferWithUid u =
     case find ((==) u . uid) c of
       Just c' -> return $ c'
       Nothing -> error $ "claferWithUid: Unknown uid " ++ u
-      
+
 parentUid :: Monad m => SClafer -> m String
 parentUid clafer =
   case parent clafer of
     Just p  -> return p
     Nothing -> fail $ "No parent uid for " ++ show clafer
-    
+
 parentOf :: (Uidable c, MonadAnalysis m) => c -> m c
 parentOf clafer = fromClafer =<< claferWithUid =<< parentUid =<< toClafer clafer
 
@@ -197,7 +197,7 @@ colonsTo clafer =
         (sub, _) <- foreach $ anything |: clafer
         fromClafer =<< (return sub `mplus` foreach ( colonsTo sub))
 
-    
+
 
 hierarchy :: (Uidable c, MonadAnalysis m) => c -> m [c]
 hierarchy t = (t :) <$> colonsOf t
@@ -214,7 +214,7 @@ isDirectChild c p =
     child <- toClafer c
     parent <- toClafer p
     is (not . null) (child |^ parent)
- 
+
 {-
  - C is an direct child of B.
  -
@@ -234,15 +234,15 @@ isIndirectChild c p =
 isChild :: (Uidable c, MonadAnalysis m) => c -> c -> m Bool
 isChild child parent =
   liftM2 (||) (isDirectChild child parent) (isIndirectChild child parent)
-  
+
 class Matchable c => Uidable c where
   toClafer :: MonadAnalysis m => c -> m SClafer
   fromClafer :: MonadAnalysis m => SClafer -> m c
-  
+
 instance Uidable SClafer where
   toClafer = return
   fromClafer = return
-  
+
 instance Uidable String where
   toClafer = claferWithUid
   fromClafer = return . uid
@@ -251,13 +251,13 @@ data Anything = Anything
 
 class Matchable u where
   matches :: u -> SClafer -> Bool
-  
+
 instance Matchable String where
   matches s c = s == uid c
-  
+
 instance Matchable Anything where
   matches _ _ = True
-  
+
 instance Matchable SClafer where
   matches c1 c2 = uid c1 == uid c2
 
@@ -275,7 +275,7 @@ lower |^ upper =
     when (not $ matches upper parent) mzero
     return (clafer , parent)
 
--- a -> b    
+-- a -> b
 (|->) :: (MonadAnalysis m, Matchable a, Matchable b) => a -> b -> m [(SClafer, SClafer)]
 lower |-> upper =
   runListT $ do
@@ -311,13 +311,13 @@ rootUid = "_root"
 
 -- Converts IClafer to SClafer
 convertClafer :: I.IClafer -> [SClafer]
-convertClafer = 
+convertClafer =
   convertClafer' Nothing
   where
   convertElement' parent (I.IEClafer clafer) = Just $ Left $ convertClafer' parent clafer
   convertElement' _ (I.IEConstraint _ pexp)   = Just $ Right $ pexp
   convertElement' _ _ = Nothing
-  
+
   convertClafer' parent clafer =
     sclafer : concat children
     where
@@ -327,7 +327,7 @@ convertClafer =
       | otherwise =
           SClafer (I.uid clafer) (I.uid clafer) (I.isAbstract clafer) low high gLow gHigh (uid <$> parent) super constraints
     (children, constraints) = partitionEithers $ mapMaybe (convertElement' $ Just $ sclafer) (I.elements clafer)
-    
+
     Just (low, high) = I.card clafer
     (gLow, gHigh) =
       case I.gcard clafer of
@@ -354,8 +354,8 @@ gatherInfo imodule =
   sReal    = SClafer "real" "real" False 0 (-1) 0 (-1) Nothing Nothing []
   sString  = SClafer "string" "string" False 0 (-1) 0 (-1) Nothing Nothing []
   sBoolean = SClafer "boolean" "boolean" False 0 (-1) 0 (-1) Nothing Nothing []
-  
-  root = I.IClafer noSpan False Nothing rootUid rootUid (I.ISuper False [I.PExp Nothing "" noSpan $ I.IClaferId "clafer" "clafer" True]) (Just (1, 1)) (0, 0) $ I.mDecls imodule
+
+  root = I.IClafer noSpan False Nothing rootUid rootUid (I.ISuper False [I.PExp Nothing "" noSpan $ I.IClaferId "clafer" "clafer" True]) (Just (1, 1)) (0, 0) True $ I.mDecls imodule
 
 
 
@@ -371,7 +371,7 @@ liftMaybe = MaybeT . return
 
 liftList :: Monad m => [a] -> ListT m a
 liftList = ListT . return
- 
+
 runListT_ :: Monad m => ListT m a -> m ()
 runListT_ l = runListT l >> return ()
 

@@ -80,13 +80,13 @@ desugarClafer x = case x of
       desugarClafer $ PosClafer noSpan abstract gcard id super card init elements
   PosClafer s abstract gcard id super card init elements  -> 
     IClafer s (desugarAbstract abstract) (desugarGCard gcard) (transIdent id)
-            "" (desugarSuper super) (desugarCard card) (0, -1)
+            "" (desugarSuper super) (desugarCard card) (0, -1) True -- all mutable for now. TODO: fix it later
             ((desugarInit init) ++ desugarElements elements)
 
 
 sugarClafer :: IClafer -> Clafer
 sugarClafer x = case x of
-  IClafer _ abstract gcard id uid super card _ elements  ->
+  IClafer _ abstract gcard id uid super card _ _ elements  ->
     Clafer (sugarAbstract abstract) (sugarGCard gcard) (mkIdent uid)
       (sugarSuper super) (sugarCard card) InitEmpty (sugarElements elements)
 
@@ -160,7 +160,23 @@ desugarConstraint :: Constraint -> PExp
 desugarConstraint x = case x of
   Constraint exps -> desugarConstraint $ PosConstraint noSpan exps
   PosConstraint s exps -> desugarPath $ desugarExp $
-    (if length exps > 1 then foldl1 (PosEAnd noSpan) else head) exps
+    (if length exps > 1 then foldl1 (PosEAnd noSpan) else head) $ map desugarConstrExp exps
+
+-- Desugar patterns
+desugarConstrExp :: ConstrExp -> Exp
+desugarConstrExp x =  case x of
+  NonPatternsExp e -> desugarConstrExp $ PosNonPatternsExp noSpan e
+  PosNonPatternsExp s e -> e
+-- TODO
+-- TmpPrecedes e1 e2 scope = desugarConstrExp $ PosTmpPrecedes noSpan e1 e2 scope 
+--  TmpRespondsto e1 e2 scope = desugarConstrExp $ PosTmpRespondsTo noSpan e1 e2 scope 
+--  TmpAbsence e scope = desugarConstrExp $ PosTmpAbsence noSpan e scope 
+--  TmpExistence e scope = desugarConstrExp $ PosTmpExistence noSpan e scope 
+--  TmpBoundedExistence e q scope = desugarConstrExp $ PosTmpBoundedExistence noSpan e q scope 
+--  ImmutableConstr e = PosImmutableConstr noSpan e
+--  PosTmpPrecedes s e1 e2 scope = desugarTmpPrecedes e1 e2 scope
+-- desugarTmpPrecedes e1 e2 scope = PExp Nothing 
+-- TODO
 
 desugarSoftConstraint :: SoftConstraint -> PExp
 desugarSoftConstraint x = case x of
@@ -175,7 +191,7 @@ desugarGoal x = case x of
     (if length exps > 1 then foldl1 (PosEAnd noSpan) else head) exps
 
 sugarConstraint :: PExp -> Constraint
-sugarConstraint pexp = Constraint $ map sugarExp [pexp]
+sugarConstraint pexp = Constraint $ map ((.) NonPatternsExp sugarExp) [pexp]
 
 sugarSoftConstraint :: PExp -> SoftConstraint
 sugarSoftConstraint pexp = SoftConstraint $ map sugarExp [pexp]
@@ -242,7 +258,7 @@ mkArrowConstraint (Clafer abstract gcard id super card init elements) =
     mkArrowConstraint $ PosClafer noSpan abstract gcard id super card init elements
 mkArrowConstraint (PosClafer s _ _ ident super _ _ _) = 
   if isSuperSomeArrow super then  [Subconstraint $
-       Constraint [PosDeclAllDisj noSpan
+       Constraint [NonPatternsExp $ PosDeclAllDisj noSpan
        (Decl [LocIdIdent $ mkIdent "x", LocIdIdent $ mkIdent "y"]
              (PosClaferId noSpan  $ Path [ModIdIdent ident]))
        (PosENeq noSpan (PosESetExp noSpan $ Join (PosClaferId noSpan $ Path [ModIdIdent $ mkIdent "x"])

@@ -24,6 +24,7 @@ abstract IClafer
 abstract IElement
 
 abstract IEClafer : IElement
+  iClafer -> IClafer
 abstract IEConstraint : IElement
   isHard ?
   cpexp -> PExp

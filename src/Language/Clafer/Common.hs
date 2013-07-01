@@ -180,6 +180,14 @@ iAnd          = "&&"
 
 logBinOps = [iIff, iImpl, iOr, iXor, iAnd]
 
+-- ltl binary operators
+iF            = "F"
+iG            = "G"
+iU            = "U"
+iX            = "F"
+
+ltlOps = [iF, iG, iU, iX]
+
 iLt           = "<"
 iGt           = ">"
 iEq           = "="
