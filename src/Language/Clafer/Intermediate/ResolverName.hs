@@ -34,6 +34,8 @@ import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+import Debug.Trace
+
 import Language.ClaferT
 import Language.Clafer.Common
 import Language.Clafer.Front.Absclafer
@@ -154,7 +156,7 @@ resolveIExp pos env x = case x of
   IInt n -> return x
   IDouble n -> return x
   IStr str -> return x
-  IClaferId _ _ _ -> resNav
+  IClaferId _ _ _ _ -> resNav
   where
   res = resolvePExp env
   resNav = fst <$> resolveNav pos env x True
@@ -176,7 +178,7 @@ resolveNav pos env x isFirst = case x of
     (exp', path') <- resolveNav (inPos pexp) env {context = listToMaybe path, resPath = path}
                      (Language.Clafer.Intermediate.Intclafer.exp pexp) False
     return (IFunExp iJoin [pexp0{I.exp=exp0'}, pexp{I.exp=exp'}], path')
-  IClaferId modName id _ -> out
+  IClaferId modName id _ _ -> out
     where
     out
       | isFirst   = mkPath env <$> resolveName pos env id
@@ -186,32 +188,48 @@ resolveNav pos env x isFirst = case x of
 -- depending on how resolved construct a path
 mkPath :: SEnv -> (HowResolved, String, [IClafer]) -> (IExp, [IClafer])
 mkPath env (howResolved, id, path) = case howResolved of
-  Binding -> (mkLClaferId id True, path)
+  Binding -> (mkLClaferId id True Nothing, path)
   Special -> (specIExp, path)
-  TypeSpecial -> (mkLClaferId id True, path)
-  Subclafers -> (toNav $ tail $ reverse $ map uid path, path)
-  Ancestor -> (toNav' $ adjustAncestor (reverse $ map uid $ resPath env)
-                                       (reverse $ map uid path), path)
-  _ -> (toNav' $ reverse $ map uid path, path)
+  TypeSpecial -> (mkLClaferId id True Nothing, path)
+  Subclafers -> (toNav $ tail $ reverse path, path)
+  Ancestor -> (toNav' (mkThis : adjustedAnc), path)
+    where 
+    adjustedAnc = adjustAncestor (reverse $ map mkIClaferId $ resPath env) (reverse $ map mkIClaferId path)
+  _ -> (toNav' $ map mkIClaferId $ reverse path, path)
   where
-  toNav = foldl
-          (\exp id -> IFunExp iJoin [pExpDefPidPos exp, mkPLClaferId id False])
-          (mkLClaferId this True)
-  specIExp = if id /= this then toNav [id] else mkLClaferId id True
+  toNav = foldl mkJoin (mkLClaferId this True Nothing)
+  mkJoin :: IExp -> IClafer -> IExp
+  mkJoin exp cl = IFunExp iJoin [pExpDefPidPos exp, mkPLClaferId (uid cl) False (Just $ mutable cl)]
+  mkThis = mkLClaferId this False Nothing
+  mkJoinWithThis exp = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos exp]
+  specIExp = if id /= this then mkJoinWithThis (mkLClaferId id True Nothing) else mkLClaferId id True Nothing
 
-toNav' p = (mkIFunExp iJoin $ map (\c -> mkLClaferId c False) p) :: IExp
+
+mkIClaferId :: IClafer -> IExp 
+mkIClaferId cl = mkLClaferId (uid cl) False (Just $ mutable cl)
+
+{-toNav' :: [IClafer] -> IExp-}
+{-toNav' p = mkIFunExp iJoin $ map (\c -> mkLClaferId (uid c) False (Just $ mutable c)) p-}
+
+toNav'' :: [String] -> IExp
+toNav'' p = mkIFunExp iJoin $ map (\c -> mkLClaferId c False Nothing) p
 
 
-adjustAncestor :: [String] -> [String] -> [String]
-adjustAncestor cPath rPath = this : parents ++ (fromJust $ stripPrefix prefix rPath)
+toNav' :: [IExp] -> IExp
+toNav' p = mkIFunExp iJoin p
+
+
+adjustAncestor :: [IExp] -> [IExp] -> [IExp]
+adjustAncestor cPath rPath = parents ++ (fromJust $ stripPrefix prefix rPath)
   where
-  parents = replicate (length $ fromJust $ stripPrefix prefix cPath) parent
+  parents = replicate (length $ fromJust $ stripPrefix prefix cPath) $ parentId
   prefix  = fst $ unzip $ takeWhile (uncurry (==)) $ zip cPath rPath
+  parentId = mkLClaferId parent False Nothing
 
 
 mkPath' modName (howResolved, id, path) = case howResolved of
-  Reference  -> (toNav' ["ref", id], path)
-  _ -> (IClaferId modName id False, path)
+  Reference  -> (toNav'' ["ref", id], path)
+  _ -> (IClaferId modName id False Nothing, path)
 
 -- -----------------------------------------------------------------------------
 
@@ -338,3 +356,8 @@ isNamespaceConflict x         = error $ "isNamespaceConflict must be given a lis
                                          ++ " of at least two elements, but was given " ++ show x
 
 filterPaths x xs = filter (((==) x).ident.fst) xs
+
+
+------------------------------------------
+
+

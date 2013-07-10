@@ -88,7 +88,6 @@ data IGCard =
       interval :: Interval
     }
   deriving (Eq,Ord,Show)
-
 -- (Min, max) integer interval. -1 denotes *
 type Interval = (Integer, Integer)
 
@@ -110,7 +109,8 @@ data IExp =
  | IClaferId {                   -- clafer name
       modName :: String,         -- module name
       sident :: String,          -- name
-      isTop :: Bool              -- identifier refers to a top-level definition
+      isTop :: Bool,             -- identifier refers to a top-level definition
+      isMutable :: Maybe Bool    -- referenced clafer is mutable in its context
     }
   deriving (Eq,Ord,Show)
 

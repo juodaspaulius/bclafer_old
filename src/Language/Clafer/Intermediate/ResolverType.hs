@@ -285,7 +285,7 @@ resolveTPExp' p@PExp{inPos, exp} =
             unless c $
               throwError $ SemanticErr inPos ("Function '" ++ op ++ "' cannot be performed on " ++ op ++ " '" ++ str t ++ "'")
       let result
-            | op == iNot = test (t == TBoolean) >> return TBoolean
+            | op `elem` (iNot: unLtlOps) = test (t == TBoolean) >> return TBoolean
             | op == iCSet = return TInteger
             | op == iSumSet = test (t == TInteger) >> return TInteger
             | op `elem` [iMin, iGMin, iGMax] = test (numeric t) >> return t
@@ -320,7 +320,7 @@ resolveTPExp' p@PExp{inPos, exp} =
             unless c $
               throwError $ SemanticErr inPos ("Function '" ++ op ++ "' cannot be performed on '" ++ str t1 ++ "' " ++ op ++ " '" ++ str t2 ++ "'")
       let result
-            | op `elem` logBinOps = test (t1 == TBoolean && t2 == TBoolean) >> return TBoolean
+            | op `elem` (logBinOps ++ binLtlOps) = test (t1 == TBoolean && t2 == TBoolean) >> return TBoolean
             | op `elem` [iLt, iGt, iLte, iGte] = test (numeric t1 && numeric t2) >> return TBoolean
             | op `elem` [iEq, iNeq] = testNotSame arg1' arg2' >> testIntersect t1 t2 >> return TBoolean
             | op == iUnion = return $ t1 +++ t2
@@ -378,7 +378,7 @@ addRef :: PExp -> ErrorT ClaferSErr (ListT TypeAnalysis) PExp
 addRef pexp =
   do
     localCurPath (typeOf pexp) $ do
-      deref <- (ErrorT $ ListT $ resolveTPExp' $ newPExp $ IClaferId "" "ref" False) `catchError` const (lift mzero)
+      deref <- (ErrorT $ ListT $ resolveTPExp' $ newPExp $ IClaferId "" "ref" False Nothing) `catchError` const (lift mzero)
       let result = (newPExp $ IFunExp "." [pexp, deref]) `withType` typeOf deref
       return result <++> addRef result
   where

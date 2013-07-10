@@ -231,6 +231,12 @@ instance Mappable Exp where
   mapNode (EOr exp0 exp1)                = doMap2 PosEOr exp0 exp1
   mapNode (EXor exp0 exp1)               = doMap2 PosEXor exp0 exp1
   mapNode (EAnd exp0 exp1)               = doMap2 PosEAnd exp0 exp1
+  mapNode (LtlRel exp0 exp1)             = doMap2 PosLtlRel exp0 exp1
+  mapNode (LtlUntil exp0 exp1)           = doMap2 PosLtlUntil exp0 exp1
+  mapNode (LtlWUntil exp0 exp1)          = doMap2 PosLtlWUntil exp0 exp1
+  mapNode (LtlF exp)                     = doMap PosLtlF exp
+  mapNode (LtlG exp)                     = doMap PosLtlG exp
+  mapNode (LtlX exp)                     = doMap PosLtlX exp
   mapNode (PosENeg s exp)                = doMapWithSpan PosENeg s exp
   mapNode (ELt exp0 exp1)                = doMap2 PosELt exp0 exp1
   mapNode (EGt exp0 exp1)                = doMap2 PosEGt exp0 exp1
@@ -286,6 +292,12 @@ instance Mappable Exp where
   range (PosEDouble s _)          = s
   range (PosEStr s _)             = s
   range (PosESetExp s _)          = s
+  range (PosLtlRel s _ _)         = s
+  range (PosLtlUntil s _ _)       = s
+  range (PosLtlWUntil s _ _)      = s
+  range (PosLtlF s _)             = s
+  range (PosLtlG s _)             = s
+  range (PosLtlX s _)             = s
   range x = error $ "No position for Exp " ++ show x
   
   

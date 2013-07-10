@@ -224,7 +224,7 @@ parse =
       ((fromJust $ new_layout args) ||
       (fromJust $ no_layout args))
     then 
-       resolveLayout 
+       resolveLayout
     else 
        id) 
     . myLexer .

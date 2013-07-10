@@ -121,7 +121,7 @@ expIExp x = case x of
     return $ IDeclPExp quant decls' pexp'
   IFunExp op exps -> if op == iJoin
                      then expNav x else IFunExp op `liftM` mapM expPExp exps
-  IClaferId _ _ _ -> expNav x
+  IClaferId _ _ _ _ -> expNav x
   _ -> return x
 
 expDecl x = case x of
@@ -139,7 +139,7 @@ expNav' context x = case x of
     (exp', context'') <- expNav' context' $ Language.Clafer.Intermediate.Intclafer.exp p
     return (IFunExp iJoin [ p0 {Language.Clafer.Intermediate.Intclafer.exp = exp0'}
                           , p  {Language.Clafer.Intermediate.Intclafer.exp = exp'}], context'')
-  IClaferId modName id isTop -> do
+  IClaferId modName id isTop isMutable -> do
     st <- gets stable
     if Map.member id st
       then do
@@ -147,7 +147,7 @@ expNav' context x = case x of
         let (impls', context') = maybe (impls, "")
              (\x -> ([[head x]], head x)) $
              find (\x -> context == (head.tail) x) impls
-        return (mkIFunExp iUnion $ map (\x -> IClaferId modName x isTop) $
+        return (mkIFunExp iUnion $ map (\x -> IClaferId modName x isTop isMutable) $
                 map head impls', context')
       else do
         return (x, id)
@@ -157,9 +157,9 @@ split' x f = case x of
   IFunExp _ (p:pexp:_) ->
     split' (Language.Clafer.Intermediate.Intclafer.exp p) (\s -> f $ IFunExp iJoin
       [p {Language.Clafer.Intermediate.Intclafer.exp = s}, pexp])
-  IClaferId modName id isTop -> do
+  IClaferId modName id isTop isMutable -> do
     st <- gets stable
-    mapM f $ map (\x -> IClaferId modName x isTop) $ maybe [id] (map head) $ Map.lookup id st
+    mapM f $ map (\x -> IClaferId modName x isTop isMutable) $ maybe [id] (map head) $ Map.lookup id st
 
 -- -----------------------------------------------------------------------------
 -- checking if all clafers have unique names and don't extend other clafers
@@ -194,7 +194,7 @@ checkConstraintPExp idents pexp = checkConstraintIExp idents $
 checkConstraintIExp idents x = case x of
    IDeclPExp _ oDecls pexp ->
      checkConstraintPExp ((oDecls >>= (checkConstraintIDecl idents)) ++ idents) pexp
-   IClaferId _ ident _ -> if ident `elem` (specialNames ++ idents) then True
+   IClaferId _ ident _ _ -> if ident `elem` (specialNames ++ idents) then True
                           else error $ "optimizer: " ++ ident ++ " not found"
    _ -> True
 
@@ -271,8 +271,8 @@ markTopIExp clafers x = case x of
   IDeclPExp quant decl pexp -> IDeclPExp quant (map (markTopDecl clafers) decl)
                                 (markTopPExp ((decl >>= decls) ++ clafers) pexp)
   IFunExp op exps -> IFunExp op $ map (markTopPExp clafers) exps
-  IClaferId modName sident _ ->
-    IClaferId modName sident $ sident `elem` clafers
+  IClaferId modName sident _ isMutable ->
+    IClaferId modName sident (sident `elem` clafers) isMutable
   _ -> x
 
 

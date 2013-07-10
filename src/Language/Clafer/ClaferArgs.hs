@@ -60,6 +60,7 @@ data ClaferArgs = ClaferArgs {
       add_comments :: Maybe Bool,
       ecore2clafer :: Maybe Bool,
       scope_strategy :: Maybe ScopeStrategy,
+      fixed_scope :: Maybe Int,
       file :: FilePath
     } deriving (Show, Data, Typeable)
 
@@ -85,6 +86,7 @@ clafer = ClaferArgs {
   add_comments        = def &= help "Include comments from the source file in the html output ('html' mode only).",
   ecore2clafer        = def &= help "Translate an ECore model into Clafer.",
   scope_strategy      = def &= help "Use scope computation strategy: none, simple (default), or full." &= name "ss",
+  fixed_scope         = def &= help "Define fixed scope." &= name "fs",
   file                = def &= args   &= typ "FILE"
  } &= summary ("Clafer " ++ version) &= program "clafer"
 
@@ -125,6 +127,7 @@ mergeArgs args args'  = args' {
   add_comments        = add_comments args        `mplus` add_comments args',
   ecore2clafer        = ecore2clafer args        `mplus` ecore2clafer args',
   scope_strategy      = scope_strategy args      `mplus` scope_strategy args',
+  fixed_scope         = fixed_scope args         `mplus` fixed_scope args',
   file                = file args}
 
 -- default values for arguments (the lowest priority)
@@ -149,9 +152,10 @@ setDefArgs args = args {
   show_references     = show_references args     `mplus` Just def,
   add_comments        = add_comments args        `mplus` Just def,
   ecore2clafer        = ecore2clafer args        `mplus` Just def,
-  scope_strategy      = scope_strategy args      `mplus` Just Simple}
+  scope_strategy      = scope_strategy args      `mplus` Just Simple,
+  fixed_scope         = fixed_scope args         `mplus` Nothing}
 
 
-emptyClaferArgs = ClaferArgs Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing ""
+emptyClaferArgs = ClaferArgs Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing ""
 
 defaultClaferArgs = setDefArgs emptyClaferArgs

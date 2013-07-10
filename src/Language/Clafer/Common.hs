@@ -29,6 +29,7 @@ import Data.List
 import qualified Data.Map as Map
 --import System.Console.CmdArgs
 --import Control.Monad.State
+import Debug.Trace
 
 import Language.Clafer.Front.Absclafer
 import Language.Clafer.Intermediate.Intclafer
@@ -62,14 +63,14 @@ getSuperId = sident . Language.Clafer.Intermediate.Intclafer.exp . head
 
 isEqClaferId = flip $ (==).uid
 
-idToPExp :: String -> Span -> String -> String -> Bool -> PExp
-idToPExp pid pos modids id isTop = PExp (Just $ TClafer [id]) pid pos (IClaferId modids id isTop)
+idToPExp :: String -> Span -> String -> String -> Bool -> Maybe Bool -> PExp
+idToPExp pid pos modids id isTop mutable = PExp (Just $ TClafer [id]) pid pos (IClaferId modids id isTop mutable)
 
-mkLClaferId :: String -> Bool -> IExp
-mkLClaferId = IClaferId ""
+mkLClaferId :: String -> Bool -> Maybe Bool -> IExp
+mkLClaferId id isTop mutable = IClaferId "" id isTop mutable
 
-mkPLClaferId :: String -> Bool -> PExp
-mkPLClaferId id isTop = pExpDefPidPos $ mkLClaferId id isTop
+mkPLClaferId :: String -> Bool -> Maybe Bool -> PExp
+mkPLClaferId id isTop mutable = pExpDefPidPos $ mkLClaferId id isTop mutable
 
 pExpDefPidPos :: IExp -> PExp
 pExpDefPidPos = pExpDefPid noSpan
@@ -80,19 +81,20 @@ pExpDefPid = pExpDef ""
 pExpDef :: String -> Span -> IExp -> PExp
 pExpDef = PExp Nothing
 
-isParent (PExp _ _ _ (IClaferId _ id _)) = id == parent
+isParent (PExp _ _ _ (IClaferId _ id _ _)) = id == parent
 isParent _ = False
 
 isClaferName :: PExp -> Bool
-isClaferName (PExp _ _ _ (IClaferId _ id _)) =
+isClaferName (PExp _ _ _ (IClaferId _ id _ _)) =
   id `notElem` ([this, parent, children] ++ primitiveTypes)
 isClaferName _ = False
 
-isClaferName' (PExp _ _ _ (IClaferId _ id _)) = True
+isClaferName' :: PExp -> Bool
+isClaferName' (PExp _ _ _ (IClaferId _ id _ _)) = True
 isClaferName' _ = False
 
 getClaferName :: PExp -> String
-getClaferName (PExp _ _ _ (IClaferId _ id _)) = id
+getClaferName (PExp _ _ _ (IClaferId _ id _ _)) = id
 getClaferName _ = ""
 
 -- -----------------------------------------------------------------------------
@@ -184,9 +186,13 @@ logBinOps = [iIff, iImpl, iOr, iXor, iAnd]
 iF            = "F"
 iG            = "G"
 iU            = "U"
-iX            = "F"
+iR            = "R"
+iW            = "W"
+iX            = "X"
 
-ltlOps = [iF, iG, iU, iX]
+unLtlOps = [iF, iG, iX]
+binLtlOps = [iU, iR, iW]
+ltlOps = [iF, iG, iX, iU, iR, iW]
 
 iLt           = "<"
 iGt           = ">"
@@ -226,8 +232,12 @@ binOps = logBinOps ++ relBinOps ++ arithBinOps ++ setBinOps
 -- ternary operators
 iIfThenElse   = "=>else"
 
+{-mkIFunExp op (x:[]) = x-}
+{-mkIFunExp op xs = foldl1 (\x y -> IFunExp op $ map (PExp (Just $ TClafer []) "" noSpan) [x,y]) xs-}
 mkIFunExp op (x:[]) = x
-mkIFunExp op xs = foldl1 (\x y -> IFunExp op $ map (PExp (Just $ TClafer []) "" noSpan) [x,y]) xs
+mkIFunExp op xs = trace ("calling mkIFunExp with op = " ++ op ++ " and xs = " ++ show xs) $ foldl1 (\x y -> IFunExp op $ map (PExp (Just $ TClafer []) "" noSpan) [x,y]) xs
+
+{-mkIFunExp' op exp = IFunExp-}
 
 toLowerS "" = ""
 toLowerS (s:ss) = toLower s : ss
@@ -269,3 +279,13 @@ voidf :: Monad m => m t -> m ()
 voidf f = do
   x <- f
   return ()
+
+containsMutable :: PExp -> Bool
+containsMutable pexp@(PExp _ _ _ exp) = case exp of 
+  (IFunExp _ exps) -> bOrFoldl1 $ map containsMutable exps
+  (IClaferId _ _ _ (Just mutable)) -> mutable
+  (IDeclPExp _ _ e) -> containsMutable e
+  _ -> False
+
+bOrFoldl1 :: [Bool] -> Bool
+bOrFoldl1 xs = foldl1 (\res val -> res || val) xs

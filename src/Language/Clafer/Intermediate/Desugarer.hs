@@ -23,6 +23,7 @@ module Language.Clafer.Intermediate.Desugarer where
 
 import Control.Monad
 import Data.Function
+import Data.Maybe
 
 import Language.Clafer.Common
 import Language.Clafer.Front.Absclafer
@@ -80,9 +81,28 @@ desugarClafer x = case x of
       desugarClafer $ PosClafer noSpan abstract gcard id super card init elements
   PosClafer s abstract gcard id super card init elements  -> 
     IClafer s (desugarAbstract abstract) (desugarGCard gcard) (transIdent id)
-            "" (desugarSuper super) (desugarCard card) (0, -1) True -- all mutable for now. TODO: fix it later
+            "" (desugarSuper super) (desugarCard card) (0, -1) (desugarMutable elements)
             ((desugarInit init) ++ desugarElements elements)
 
+desugarMutable :: Elements -> Bool
+desugarMutable elements = foldl isMutable True $ getConstExps elements 
+  where 
+  isMutable mut cexp = mut && (not $ isImmutExp cexp)
+  isImmutExp (ImmutableConstr _) = True
+  isImmutExp (PosImmutableConstr _ _) = True
+  isImmutExp _ = False
+
+getConstExps elements = case elements of
+  ElementsList xs -> getConstExps $ PosElementsList noSpan xs
+  PosElementsList s xs -> foldl (\res sc -> res ++ subConstr sc) [] xs
+  _ -> []
+  where
+  subConstr (Subconstraint cs) = constrs cs
+  subConstr (PosSubconstraint s cs) = constrs cs
+  subConstr _ = []
+  constrs (Constraint xs) = xs
+  constrs (PosConstraint s xs) = xs
+  constrs _ = []
 
 sugarClafer :: IClafer -> Clafer
 sugarClafer x = case x of
@@ -96,7 +116,7 @@ desugarSuper x = case x of
   SuperEmpty  -> desugarSuper $ PosSuperEmpty noSpan
   SuperSome superhow setexp -> desugarSuper $ PosSuperSome noSpan superhow setexp
   PosSuperEmpty s ->
-      ISuper False [PExp (Just $ TClafer []) "" s $ mkLClaferId baseClafer True]
+      ISuper False [PExp (Just $ TClafer []) "" s $ mkLClaferId baseClafer True Nothing]
   PosSuperSome s superhow setexp ->
       ISuper (desugarSuperHow superhow) [desugarSetExp setexp]
 
@@ -114,8 +134,8 @@ desugarInit x = case x of
   InitSome inithow exp  -> desugarInit $ PosInitSome noSpan inithow exp
   PosInitEmpty s  -> []
   PosInitSome s inithow exp  ->
-      [IEConstraint (desugarInitHow inithow)
-      (pExpDefPidPos (IFunExp "=" [mkPLClaferId "this" False, desugarExp exp]))]
+      [IEConstraint (desugarInitHow inithow) 
+      (pExpDefPidPos (IFunExp "=" [mkPLClaferId "this" False Nothing, desugarExp exp]))] -- TODO "this" can also be mutable?
 
 
 desugarInitHow :: InitHow -> Bool
@@ -130,7 +150,7 @@ desugarName x = case x of
   Path path -> desugarName $ PosPath noSpan path
   PosPath s path ->
       IClaferId (concatMap ((++ modSep).desugarModId) (init path))
-                (desugarModId $ last path) True
+                (desugarModId $ last path) True Nothing
 
 desugarModId x = case x of
   ModIdIdent id -> desugarModId $ PosModIdIdent noSpan id
@@ -156,17 +176,23 @@ sugarInitHow x = case x of
   False -> InitHow_2
 
 
-desugarConstraint :: Constraint -> PExp
+desugarConstraint :: Constraint -> Maybe PExp
 desugarConstraint x = case x of
   Constraint exps -> desugarConstraint $ PosConstraint noSpan exps
-  PosConstraint s exps -> desugarPath $ desugarExp $
-    (if length exps > 1 then foldl1 (PosEAnd noSpan) else head) $ map desugarConstrExp exps
+  PosConstraint s exps -> case exps' of
+    [] -> Nothing
+    _ -> Just $ desugarPath $ desugarExp $
+      (if length exps' > 1 then foldl1 (PosEAnd noSpan) else head) $ exps'
+    where
+    exps' = mapMaybe desugarConstrExp exps
+
 
 -- Desugar patterns
-desugarConstrExp :: ConstrExp -> Exp
+desugarConstrExp :: ConstrExp -> Maybe Exp
 desugarConstrExp x =  case x of
   NonPatternsExp e -> desugarConstrExp $ PosNonPatternsExp noSpan e
-  PosNonPatternsExp s e -> e
+  PosNonPatternsExp s e -> Just e
+  _ -> Nothing
 -- TODO
 -- TmpPrecedes e1 e2 scope = desugarConstrExp $ PosTmpPrecedes noSpan e1 e2 scope 
 --  TmpRespondsto e1 e2 scope = desugarConstrExp $ PosTmpRespondsTo noSpan e1 e2 scope 
@@ -240,8 +266,9 @@ desugarElement x = case x of
   PosClaferUse s name card elements  -> [IEClafer $ desugarClafer $ PosClafer s
       AbstractEmpty GCardEmpty (mkIdent $ sident $ desugarName name)
       (SuperSome SuperColon (PosClaferId noSpan name)) card InitEmpty elements]
-  PosSubconstraint s constraint  ->
-      [IEConstraint True $ desugarConstraint constraint]
+  PosSubconstraint s constraint  -> case (desugarConstraint constraint) of 
+      Nothing -> []
+      Just constr -> [IEConstraint True $ constr]
   PosSubsoftconstraint s softconstraint ->
       [IEConstraint False $ desugarSoftConstraint softconstraint]
   PosSubgoal s goal -> [IEGoal True $ desugarGoal goal]
@@ -355,6 +382,12 @@ desugarExp' x = case x of
   EXor exp0 exp  -> desugarExp' $ PosEXor noSpan exp0 exp
   EAnd exp0 exp  -> desugarExp' $ PosEAnd noSpan exp0 exp
   ENeg exp -> desugarExp' $ PosENeg noSpan exp
+  LtlRel exp0 exp  -> desugarExp' $ PosLtlRel noSpan exp0 exp
+  LtlUntil exp0 exp  -> desugarExp' $ PosLtlUntil noSpan exp0 exp
+  LtlWUntil exp0 exp  -> desugarExp' $ PosLtlWUntil noSpan exp0 exp
+  LtlF exp  -> desugarExp' $ PosLtlF noSpan exp
+  LtlG exp  -> desugarExp' $ PosLtlG noSpan exp
+  LtlX exp  -> desugarExp' $ PosLtlX noSpan exp
   QuantExp quant exp  -> desugarExp' $ PosQuantExp noSpan quant exp
   ELt  exp0 exp  -> desugarExp' $ PosELt noSpan exp0 exp
   EGt  exp0 exp  -> desugarExp' $ PosEGt noSpan exp0 exp
@@ -391,6 +424,12 @@ desugarExp' x = case x of
   PosEXor s exp0 exp  -> dop iXor [exp0, exp]
   PosEAnd s exp0 exp  -> dop iAnd [exp0, exp]
   PosENeg s exp  -> dop iNot [exp]
+  PosLtlRel s exp0 exp  -> dop iR [exp0, exp]
+  PosLtlUntil s exp0 exp  -> dop iU [exp0, exp]
+  PosLtlWUntil s exp0 exp  -> dop iW [exp0, exp]
+  PosLtlF s exp  -> dop iF [exp]
+  PosLtlG s exp  -> dop iG [exp]
+  PosLtlX s exp  -> dop iX [exp]
   PosQuantExp s quant exp ->
       IDeclPExp (desugarQuant quant) [] (desugarExp exp)
   PosELt  s exp0 exp  -> dop iLt  [exp0, exp]
@@ -481,7 +520,7 @@ sugarExp' x = case x of
   IInt n -> EInt $ PosInteger ((0, 0), show n)
   IDouble n -> EDouble $ PosDouble ((0, 0), show n)
   IStr str -> EStr $ PosString ((0, 0), str)
-  IClaferId _ _ _ -> ESetExp $ sugarSetExp' x
+  IClaferId _ _ _ _ -> ESetExp $ sugarSetExp' x
   where
   sugarUnOp op
     | op == iNot           = ENeg
@@ -531,8 +570,8 @@ sugarSetExp' x = case x of
       | op == iDomain        = Domain
       | op == iRange         = Range
       | op == iJoin          = Join
-  IClaferId "" id _ -> ClaferId $ Path [ModIdIdent $ mkIdent id]
-  IClaferId modName id _ -> ClaferId $ Path $ (sugarModId modName) : [sugarModId id]
+  IClaferId "" id _ _ -> ClaferId $ Path [ModIdIdent $ mkIdent id]
+  IClaferId modName id _ _ -> ClaferId $ Path $ (sugarModId modName) : [sugarModId id]
 
 desugarPath :: PExp -> PExp
 desugarPath (PExp iType pid pos x) = reducePExp $ PExp iType pid pos result
@@ -546,7 +585,7 @@ desugarPath (PExp iType pid pos x) = reducePExp $ PExp iType pid pos result
 
 
 isSet :: IExp -> Bool
-isSet (IClaferId _ _ _)  = True
+isSet (IClaferId _ _ _ _)  = True
 isSet (IFunExp op _) = op `elem` setBinOps
 isSet _ = False
 
