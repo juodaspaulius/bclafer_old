@@ -24,6 +24,9 @@ import Data.Char
 import Data.List
 import Data.Maybe
 import Data.Function
+
+{-import Debug.Trace-}
+
 import Control.Monad.State
 
 import Language.Clafer.Common
@@ -173,7 +176,9 @@ optShowSet xs = CString "\n" +++ showSet (CString "\n  ") xs
 -- optimization: top level cardinalities
 -- optimization: if only boolean parents, then set card is known
 genClafer :: ClaferArgs -> [String] -> IClafer -> Concat
-genClafer claferargs resPath oClafer = (cunlines $ filterNull
+genClafer claferargs resPath oClafer = 
+{-trace ("call in genClafer resPath = " ++ show resPath ++ "\noClafer = " ++ show oClafer ++ "\ncardFact = " ++ flatten cardFact) $-}
+  (cunlines $ filterNull
   [ cardFact +++ claferDecl clafer
         ((showSet (CString "\n, ") $ genRelations claferargs clafer) +++
         (optShowSet $ filterNull $ genConstraints (GenEnv claferargs resPath Nothing) clafer))
@@ -199,10 +204,13 @@ transPrimitive    clafer   = clafer{super = toOverlapping $ super clafer}
   toOverlapping x = x
 
 claferDecl :: IClafer -> Concat -> Concat
-claferDecl    clafer     rest    = cconcat [genOptCard clafer,
+claferDecl    clafer     rest    = cconcat [card,
   CString $ genAbstract $ isAbstract clafer, CString "sig ",
   Concat NoTrace [CString $ uid clafer, genExtends $ super clafer, CString "\n", rest]]
   where
+  card 
+    {-| mutable clafer = CString ""-}
+    | otherwise = genOptCard clafer
   genAbstract isAbstract = if isAbstract then "abstract " else ""
   genExtends (ISuper False [PExp _ _ _ (IClaferId _ "clafer" _ _)]) = CString ""
   genExtends (ISuper False [PExp _ _ _ (IClaferId _ id _ _)]) = CString " " +++ Concat NoTrace [CString $ "extends " ++ id]
@@ -271,7 +279,9 @@ genType claferargs x = genPExp (GenEnv claferargs [] Nothing) x
 -- user constraints + parent + group constraints + reference
 -- a = NUMBER do all x : a | x = NUMBER (otherwise alloy sums a set)
 genConstraints :: GenEnv -> IClafer -> [Concat]
-genConstraints    env clafer = (genParentConst (resPath env) clafer) :
+genConstraints    env clafer = 
+--  trace ("Call in genConstraints; constraints = " ++ (flatten $ cunlines constraints)) $ 
+  (genParentConst (resPath env) clafer) :
   (genMutSubClafersConst clafer) :
   (genGroupConst clafer) : genPathConst env (if (fromJust $ noalloyruncommand (claferArgs env)) then  (uid clafer ++ "_ref") else "ref") clafer : constraints
   where
@@ -436,7 +446,7 @@ genPExp'    env       x@(PExp iType pid pos exp) = case exp of
     TString -> vsident
     _ -> sident'
     where
-    sident' = (if isTop then "" else '@' : genRelName "") ++ sident ++ timeJoin
+    sident' = (if isTop then sident else '@' : genRelName "" ++ sident ++ timeJoin)
     timeJoin = case (isMutable, time env) of 
       (Just True, Just t) -> "." ++ t
       _ -> "" 

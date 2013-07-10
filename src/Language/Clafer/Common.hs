@@ -284,8 +284,10 @@ containsMutable :: PExp -> Bool
 containsMutable pexp@(PExp _ _ _ exp) = case exp of 
   (IFunExp _ exps) -> bOrFoldl1 $ map containsMutable exps
   (IClaferId _ _ _ (Just mutable)) -> mutable
-  (IDeclPExp _ _ e) -> containsMutable e
+  (IDeclPExp _ decls e) -> bOrFoldl1 (map containsMut decls) || containsMutable e
   _ -> False
+  where 
+  containsMut (IDecl _ _ body) = containsMutable body
 
 bOrFoldl1 :: [Bool] -> Bool
 bOrFoldl1 xs = foldl1 (\res val -> res || val) xs
