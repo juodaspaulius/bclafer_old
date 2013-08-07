@@ -21,6 +21,8 @@
 -}
 module Language.Clafer.Intermediate.Transformer where
 
+import Prelude hiding (exp)
+import Debug.Trace
 import Data.Maybe
 import Language.Clafer.Common
 import Language.Clafer.Intermediate.Intclafer
@@ -49,3 +51,17 @@ transIExp t x = case x of
     where
     cond = op == iIfThenElse && t `elem` [TBoolean, TClafer []]
   _  -> x
+  where
+  x'=transIJoinRef x
+
+transIJoinRef x@(IFunExp iJoin exps@(e1:e2:_)) = case (ie1,ie2) of
+  (IClaferId _ _ _ mut1, IClaferId _ "ref" _ _) -> trace ("transforming iJoin reference expression \n") $ x{exps = [transPExp1, transPExp2]}
+    where 
+    transPExp1 = e1{exp=ie1{isMutable=Nothing}}
+    transPExp2 = e2{exp=ie2{isMutable=mut1}}
+  _ -> x
+  where
+  (PExp _ _ _ ie1) = e1
+  (PExp _ _ _ ie2) = e2 
+transIJoinRef x = x 
+  

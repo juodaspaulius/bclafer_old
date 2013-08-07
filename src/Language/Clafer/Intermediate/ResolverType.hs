@@ -190,10 +190,10 @@ getIfThenElseType t1 t2 =
     if (value == Just "clafer") then Nothing else value
 
 resolveTModule :: (IModule, GEnv) -> Either ClaferSErr IModule
-resolveTModule (imodule, _) =
+resolveTModule (imodule, _) = trace ("Starting resolveTModule\n" ++ show imodule) $ 
   case runTypeAnalysis (analysis $ mDecls imodule) imodule of
     Right mDecls' -> return imodule{mDecls = mDecls'}
-    Left err      -> throwError err
+    Left err      -> trace ("Found error in resolveTModule: " ++ show err ++  "\n") $ throwError err
   where
   analysis decls = mapM (resolveTElement $ rootUid) decls
 
@@ -221,7 +221,7 @@ resolveTConstraint curThis constraint =
     
 
 resolveTPExp :: PExp -> TypeAnalysis [PExp]
-resolveTPExp p = 
+resolveTPExp p = -- trace ("resolving type for " ++ show p ++ "\n") $ 
   do
     x <- resolveTPExp' p
     case partitionEithers x of
@@ -230,7 +230,7 @@ resolveTPExp p =
       (_,   xs) -> return xs                          -- Case 3: At least one success.
 
 resolveTPExp' :: PExp -> TypeAnalysis [Either ClaferSErr PExp]
-resolveTPExp' p@PExp{inPos, exp = IClaferId{sident = "ref"}} =
+resolveTPExp' p@PExp{inPos, exp = IClaferId{sident = "ref"}} = trace ("resolving type for " ++ show p ++ "\n") $ 
   runListT $ runErrorT $ do
     curPath' <- curPath
     case curPath' of
@@ -379,7 +379,7 @@ addRef pexp =
   do
     localCurPath (typeOf pexp) $ do
       deref <- (ErrorT $ ListT $ resolveTPExp' $ newPExp $ IClaferId "" "ref" False Nothing) `catchError` const (lift mzero)
-      let result = (newPExp $ IFunExp "." [pexp, deref]) `withType` typeOf deref
+      let result = (newPExp $ IFunExp iJoin [pexp, deref]) `withType` typeOf deref
       return result <++> addRef result
   where
   newPExp = PExp Nothing "" $ inPos pexp

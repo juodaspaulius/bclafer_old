@@ -31,6 +31,7 @@ import Data.Tree
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Debug.Trace
 
 import Language.ClaferT
 import Language.Clafer.Common
@@ -42,7 +43,7 @@ import Language.Clafer.Intermediate.ResolverName
 -- -----------------------------------------------------------------------------
 -- Non-overlapping inheritance
 resolveNModule :: (IModule, GEnv) -> Resolve (IModule, GEnv)
-resolveNModule (imodule, genv) =
+resolveNModule (imodule, genv) =  
   do
     let decls = mDecls imodule
     decls' <- mapM (resolveNElement decls) decls

@@ -64,10 +64,16 @@ data ConstrExp =
  | PosTmpRespondsTo Span Exp Exp TmpScope
  | TmpAbsence Exp TmpScope
  | PosTmpAbsence Span Exp TmpScope
- | TmpExistence Exp TmpScope
- | PosTmpExistence Span Exp TmpScope
+ | TmpUniversality Exp TmpScope
+ | PosTmpUniversality Span Exp TmpScope
  | TmpBoundedExistence Exp PosInteger TmpScope
  | PosTmpBoundedExistence Span Exp PosInteger TmpScope
+ | TmpExistence Exp TmpScope
+ | PosTmpExistence Span Exp TmpScope
+ | ConstrExpOr ConstrExp ConstrExp
+ | PosConstrExpOr Span ConstrExp ConstrExp
+ | ConstrExpAnd ConstrExp ConstrExp
+ | PosConstrExpAnd Span ConstrExp ConstrExp
  | NonPatternsExp Exp
  | PosNonPatternsExp Span Exp
  | ImmutableConstr PosImmutable

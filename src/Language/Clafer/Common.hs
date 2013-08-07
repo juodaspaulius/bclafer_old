@@ -29,7 +29,7 @@ import Data.List
 import qualified Data.Map as Map
 --import System.Console.CmdArgs
 --import Control.Monad.State
-import Debug.Trace
+{-import Debug.Trace-}
 
 import Language.Clafer.Front.Absclafer
 import Language.Clafer.Intermediate.Intclafer
@@ -92,6 +92,10 @@ isClaferName _ = False
 isClaferName' :: PExp -> Bool
 isClaferName' (PExp _ _ _ (IClaferId _ id _ _)) = True
 isClaferName' _ = False
+
+isMutableClaferName :: PExp -> Bool
+isMutableClaferName (PExp _ _ _ (IClaferId _ id _ (Just True))) = True
+isMutableClaferName _ = False
 
 getClaferName :: PExp -> String
 getClaferName (PExp _ _ _ (IClaferId _ id _ _)) = id
@@ -234,8 +238,9 @@ iIfThenElse   = "=>else"
 
 {-mkIFunExp op (x:[]) = x-}
 {-mkIFunExp op xs = foldl1 (\x y -> IFunExp op $ map (PExp (Just $ TClafer []) "" noSpan) [x,y]) xs-}
+mkIFunExp :: [Char] -> [IExp] -> IExp
 mkIFunExp op (x:[]) = x
-mkIFunExp op xs = trace ("calling mkIFunExp with op = " ++ op ++ " and xs = " ++ show xs) $ foldl1 (\x y -> IFunExp op $ map (PExp (Just $ TClafer []) "" noSpan) [x,y]) xs
+mkIFunExp op xs = foldl1 (\x y -> IFunExp op $ map (PExp (Just $ TClafer []) "" noSpan) [x,y]) xs
 
 {-mkIFunExp' op exp = IFunExp-}
 
@@ -290,4 +295,5 @@ containsMutable pexp@(PExp _ _ _ exp) = case exp of
   containsMut (IDecl _ _ body) = containsMutable body
 
 bOrFoldl1 :: [Bool] -> Bool
+bOrFoldl1 [] = False
 bOrFoldl1 xs = foldl1 (\res val -> res || val) xs

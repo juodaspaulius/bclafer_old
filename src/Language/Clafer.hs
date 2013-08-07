@@ -60,6 +60,7 @@ import Data.Ord
 import Control.Monad
 import Control.Monad.Writer
 import System.FilePath (dropExtension,takeBaseName)
+import Debug.Trace
 
 import Language.ClaferT
 import Language.Clafer.Common
@@ -366,9 +367,10 @@ analyze args tree = do
   let dTree' = findDupModule args tree
   let au = allUnique dTree'
   let args' = args{skip_resolver = Just $ au && (fromJust $ skip_resolver args)}
-  (rTree, genv) <- liftError $ resolveModule args' dTree'
-  let tTree = transModule rTree
-  return (optimizeModule args' (tTree, genv), genv, au)
+  (rTree, genv) <- {- liftError $ resolveModule args' dTree' --} trace ("dTree'=" ++ show dTree' ++ "\n") $ liftError $ resolveModule args' dTree'
+  let tTree = {-transModule rTree --} trace ("rTree=" ++ show rTree ++ "\n") $ transModule rTree
+  let f = trace ("tTree=" ++ show tTree ++ "\n") False
+  return (optimizeModule args' (tTree, genv), genv, au || f)
 
 addStats :: String -> String -> String
 addStats code stats = "/*\n" ++ stats ++ "*/\n" ++ code

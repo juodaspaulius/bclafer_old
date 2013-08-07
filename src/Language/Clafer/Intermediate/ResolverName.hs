@@ -178,7 +178,7 @@ resolveNav pos env x isFirst = case x of
     (exp', path') <- resolveNav (inPos pexp) env {context = listToMaybe path, resPath = path}
                      (Language.Clafer.Intermediate.Intclafer.exp pexp) False
     return (IFunExp iJoin [pexp0{I.exp=exp0'}, pexp{I.exp=exp'}], path')
-  IClaferId modName id _ _ -> out
+  IClaferId modName id _ _ -> out -- trace ("resolved id: " ++ id ++ "\nwith: " ++ show out ++ "\n") out
     where
     out
       | isFirst   = mkPath env <$> resolveName pos env id
@@ -187,36 +187,37 @@ resolveNav pos env x isFirst = case x of
 
 -- depending on how resolved construct a path
 mkPath :: SEnv -> (HowResolved, String, [IClafer]) -> (IExp, [IClafer])
-mkPath env (howResolved, id, path) = case howResolved of
+mkPath env (howResolved, id, path) =  case howResolved of -- trace ("resolving id=" ++ id ++ " howResolved: " ++ (show howResolved) ++ "\n") $
   Binding -> (mkLClaferId id True Nothing, path)
   Special -> (specIExp, path)
-  TypeSpecial -> (mkLClaferId id True Nothing, path)
-  Subclafers -> (toNav $ tail $ reverse path, path)
-  Ancestor -> (toNav' (mkThis : adjustedAnc), path)
+  TypeSpecial ->  (mkLClaferId id True Nothing, path)
+  Subclafers -> (toNav $ (mkIClaferId' this True) : (map mkIClaferId $ tail $ reverse path), path)
+  Ancestor -> (toNav (mkThis : adjustedAnc), path)
     where 
     adjustedAnc = adjustAncestor (reverse $ map mkIClaferId $ resPath env) (reverse $ map mkIClaferId path)
-  _ -> (toNav' $ map mkIClaferId $ reverse path, path)
+  _ -> (toNav $ map mkIClaferId $ reverse path, path)
   where
-  toNav = foldl mkJoin (mkLClaferId this True Nothing)
-  mkJoin :: IExp -> IClafer -> IExp
-  mkJoin exp cl = IFunExp iJoin [pExpDefPidPos exp, mkPLClaferId (uid cl) False (Just $ mutable cl)]
-  mkThis = mkLClaferId this False Nothing
-  mkJoinWithThis exp = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos exp]
-  specIExp = if id /= this then mkJoinWithThis (mkLClaferId id True Nothing) else mkLClaferId id True Nothing
+  mkThis = mkIClaferId' this False
+  mut = mutable (head path)
+  specIExp 
+    | id == this = mkLClaferId id True Nothing
+    | id == ref = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos (mkLClaferId id True $ Just mut)]
+    | otherwise = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos (mkLClaferId id True Nothing)]
 
 
 mkIClaferId :: IClafer -> IExp 
-mkIClaferId cl = mkLClaferId (uid cl) False (Just $ mutable cl)
-
-{-toNav' :: [IClafer] -> IExp-}
-{-toNav' p = mkIFunExp iJoin $ map (\c -> mkLClaferId (uid c) False (Just $ mutable c)) p-}
-
-toNav'' :: [String] -> IExp
-toNav'' p = mkIFunExp iJoin $ map (\c -> mkLClaferId c False Nothing) p
+mkIClaferId cl = mkLClaferId (uid cl) False mut
+  where
+  mut = Just $ mutable cl
+  {-mut | isOverlapping $ super cl = Nothing-}
+      {-| otherwise = (Just $ mutable cl)-}
 
 
-toNav' :: [IExp] -> IExp
-toNav' p = mkIFunExp iJoin p
+mkIClaferId' :: String -> Bool -> IExp
+mkIClaferId' id top = mkLClaferId id top Nothing
+
+toNav :: [IExp] -> IExp
+toNav p = mkIFunExp iJoin p
 
 
 adjustAncestor :: [IExp] -> [IExp] -> [IExp]
@@ -228,8 +229,10 @@ adjustAncestor cPath rPath = parents ++ (fromJust $ stripPrefix prefix rPath)
 
 
 mkPath' modName (howResolved, id, path) = case howResolved of
-  Reference  -> (toNav'' ["ref", id], path)
-  _ -> (IClaferId modName id False Nothing, path)
+  Reference  -> (toNav [(mkLClaferId "ref" False mut), mkIClaferId (head path)], path)
+  _ -> (IClaferId modName id False mut, path)
+  where 
+  mut = Just $ mutable (head path)
 
 -- -----------------------------------------------------------------------------
 
@@ -258,8 +261,7 @@ resolveNone pos env id =
 -- checks if ident is one of special identifiers
 resolveSpecial :: SEnv -> String -> Resolve (Maybe (HowResolved, String, [IClafer]))
 resolveSpecial env id
-  | id `elem` [this, children, ref] =
-      return $ Just (Special, id, resPath env)
+  | id `elem` [this, children, ref] = return $ Just (Special, id, resPath env)
   | id == parent   = return $ Just (Special, id, tail $ resPath env)
   | isPrimitive id = return $ Just (TypeSpecial, id, [])
   | otherwise      = return Nothing 

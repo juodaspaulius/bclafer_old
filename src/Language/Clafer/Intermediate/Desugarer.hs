@@ -24,6 +24,7 @@ module Language.Clafer.Intermediate.Desugarer where
 import Control.Monad
 import Data.Function
 import Data.Maybe
+import Debug.Trace
 
 import Language.Clafer.Common
 import Language.Clafer.Front.Absclafer
@@ -181,10 +182,10 @@ desugarConstraint x = case x of
   Constraint exps -> desugarConstraint $ PosConstraint noSpan exps
   PosConstraint s exps -> case exps' of
     [] -> Nothing
-    _ -> Just $ desugarPath $ desugarExp $
-      (if length exps' > 1 then foldl1 (PosEAnd noSpan) else head) $ exps'
+    _ -> Just $ desugarPath $ desugarExp $ combineExps
     where
     exps' = mapMaybe desugarConstrExp exps
+    combineExps = (if length exps' > 1 then foldl1 (PosEAnd noSpan) else head) $ exps'
 
 
 -- Desugar patterns
@@ -192,17 +193,35 @@ desugarConstrExp :: ConstrExp -> Maybe Exp
 desugarConstrExp x =  case x of
   NonPatternsExp e -> desugarConstrExp $ PosNonPatternsExp noSpan e
   PosNonPatternsExp s e -> Just e
+  TmpPrecedes e1 e2 scope -> desugarConstrExp $ PosTmpPrecedes noSpan e1 e2 scope 
+  TmpRespondsTo e1 e2 scope -> desugarConstrExp $ PosTmpRespondsTo noSpan e1 e2 scope 
+  TmpAbsence e scope -> desugarConstrExp $ PosTmpAbsence noSpan e scope 
+  TmpUniversality e scope -> desugarConstrExp $ PosTmpUniversality noSpan e scope 
+  TmpExistence e scope -> desugarConstrExp $ PosTmpExistence noSpan e scope 
+  TmpBoundedExistence e q scope -> desugarConstrExp $ PosTmpBoundedExistence noSpan e q scope 
+  ConstrExpOr e1 e2 -> desugarConstrExp $ PosConstrExpOr noSpan e1 e2
+  PosTmpPrecedes s e1 e2 scope -> desugarTmpPrecedes s e1 e2 $ desugarTmpScope scope
+-- desugarTmpPrecedes e1 e2 scope = PExp Nothing 
   _ -> Nothing
 -- TODO
--- TmpPrecedes e1 e2 scope = desugarConstrExp $ PosTmpPrecedes noSpan e1 e2 scope 
---  TmpRespondsto e1 e2 scope = desugarConstrExp $ PosTmpRespondsTo noSpan e1 e2 scope 
---  TmpAbsence e scope = desugarConstrExp $ PosTmpAbsence noSpan e scope 
---  TmpExistence e scope = desugarConstrExp $ PosTmpExistence noSpan e scope 
---  TmpBoundedExistence e q scope = desugarConstrExp $ PosTmpBoundedExistence noSpan e q scope 
---  ImmutableConstr e = PosImmutableConstr noSpan e
---  PosTmpPrecedes s e1 e2 scope = desugarTmpPrecedes e1 e2 scope
--- desugarTmpPrecedes e1 e2 scope = PExp Nothing 
--- TODO
+
+desugarTmpScope scope = case scope of
+   TmpScopeGlobally -> PosTmpScopeGlobally noSpan
+   TmpScopeBefore e -> PosTmpScopeBefore noSpan $ adjustExp e
+   TmpScopeAfter e -> PosTmpScopeAfter noSpan $ adjustExp e
+   TmpScopeBetweenAnd e1 e2 -> PosTmpScopeBetweenAnd noSpan (adjustExp e1) (adjustExp e2)
+   TmpScopeAfterUntil e1 e2 -> PosTmpScopeAfterUntil noSpan (adjustExp e1) (adjustExp e2)
+   _ -> scope
+
+
+desugarTmpPrecedes :: Span -> Exp -> Exp -> TmpScope -> Maybe Exp
+desugarTmpPrecedes span e1 e2 scope = case scope of
+  PosTmpScopeGlobally s -> Just $ PosLtlWUntil span (PosENeg noSpan e2) e1
+  PosTmpScopeBefore s r -> Just $ PosEImplies span (PosLtlF noSpan r) (PosLtlUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r))
+  PosTmpScopeAfter s q -> Just $ PosEOr span (PosLtlG noSpan $ PosENeg noSpan q) (PosLtlF noSpan (PosEAnd noSpan q (PosLtlWUntil noSpan (PosENeg noSpan e2) (e1))))
+  PosTmpScopeBetweenAnd s q r -> Just $ PosLtlG span (PosEImplies noSpan (PosEAnd noSpan q (PosEAnd noSpan (PosENeg noSpan r) (PosLtlF noSpan r) )) (PosLtlUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r)) )
+  PosTmpScopeAfterUntil s q r -> Just $ PosLtlG span (PosEImplies noSpan (PosEAnd noSpan q (PosENeg noSpan r)) (PosLtlWUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r)) )
+  _ -> Nothing
 
 desugarSoftConstraint :: SoftConstraint -> PExp
 desugarSoftConstraint x = case x of
@@ -289,9 +308,9 @@ mkArrowConstraint (PosClafer s _ _ ident super _ _ _) =
        (Decl [LocIdIdent $ mkIdent "x", LocIdIdent $ mkIdent "y"]
              (PosClaferId noSpan  $ Path [ModIdIdent ident]))
        (PosENeq noSpan (PosESetExp noSpan $ Join (PosClaferId noSpan $ Path [ModIdIdent $ mkIdent "x"])
-                             (PosClaferId noSpan $ Path [ModIdIdent $ mkIdent "ref"]))
+                             (PosClaferId noSpan $ Path [ModIdIdent $ mkIdent ref]))
              (PosESetExp noSpan $ Join (PosClaferId noSpan $ Path [ModIdIdent $ mkIdent "y"])
-                             (PosClaferId noSpan $ Path [ModIdIdent $ mkIdent "ref"])))]]
+                             (PosClaferId noSpan $ Path [ModIdIdent $ mkIdent ref])))]]
   else []
 
 
@@ -366,50 +385,12 @@ sugarCard x = case x of
 sugarExInteger n = if n == -1 then ExIntegerAst else (ExIntegerNum $ PosInteger ((0, 0), show n))
 
 desugarExp :: Exp -> PExp
-desugarExp x = pExpDefPid (range x) $ desugarExp' x
+desugarExp x = pExpDefPid (range x') $ desugarExp' x'
+  where 
+  x' = adjustExp x
 
 desugarExp' :: Exp -> IExp
 desugarExp' x = case x of
-  DeclAllDisj decl exp -> desugarExp' $ PosDeclAllDisj noSpan decl exp
-  DeclAll decl exp -> desugarExp' $ PosDeclAll noSpan decl exp
-  DeclQuantDisj quant decl exp ->
-      desugarExp' $ PosDeclQuantDisj noSpan quant decl exp
-  DeclQuant quant decl exp -> desugarExp' $ PosDeclQuant noSpan quant decl exp
-  EIff exp0 exp  -> desugarExp' $ PosEIff noSpan exp0 exp
-  EImplies exp0 exp  -> desugarExp' $ PosEImplies noSpan exp0 exp
-  EImpliesElse exp0 exp1 exp  -> desugarExp' $ PosEImpliesElse noSpan exp0 exp1 exp
-  EOr exp0 exp  -> desugarExp' $ PosEOr noSpan exp0 exp
-  EXor exp0 exp  -> desugarExp' $ PosEXor noSpan exp0 exp
-  EAnd exp0 exp  -> desugarExp' $ PosEAnd noSpan exp0 exp
-  ENeg exp -> desugarExp' $ PosENeg noSpan exp
-  LtlRel exp0 exp  -> desugarExp' $ PosLtlRel noSpan exp0 exp
-  LtlUntil exp0 exp  -> desugarExp' $ PosLtlUntil noSpan exp0 exp
-  LtlWUntil exp0 exp  -> desugarExp' $ PosLtlWUntil noSpan exp0 exp
-  LtlF exp  -> desugarExp' $ PosLtlF noSpan exp
-  LtlG exp  -> desugarExp' $ PosLtlG noSpan exp
-  LtlX exp  -> desugarExp' $ PosLtlX noSpan exp
-  QuantExp quant exp  -> desugarExp' $ PosQuantExp noSpan quant exp
-  ELt  exp0 exp  -> desugarExp' $ PosELt noSpan exp0 exp
-  EGt  exp0 exp  -> desugarExp' $ PosEGt noSpan exp0 exp
-  EEq  exp0 exp  -> desugarExp' $ PosEEq noSpan exp0 exp
-  ELte exp0 exp  -> desugarExp' $ PosELte noSpan exp0 exp
-  EGte exp0 exp  -> desugarExp' $ PosEGte noSpan exp0 exp
-  ENeq exp0 exp  -> desugarExp' $ PosENeq noSpan exp0 exp
-  EIn  exp0 exp  -> desugarExp' $ PosEIn noSpan exp0 exp
-  ENin exp0 exp  -> desugarExp' $ PosENin noSpan exp0 exp
-  EAdd exp0 exp  -> desugarExp' $ PosEAdd noSpan exp0 exp
-  ESub exp0 exp  -> desugarExp' $ PosESub noSpan exp0 exp
-  EMul exp0 exp  -> desugarExp' $ PosEMul noSpan exp0 exp
-  EDiv exp0 exp  -> desugarExp' $ PosEDiv noSpan exp0 exp
-  ECSetExp exp   -> desugarExp' $ PosECSetExp noSpan exp
-  ESumSetExp sexp -> desugarExp' $ PosESumSetExp noSpan sexp  
-  EMinExp exp    -> desugarExp' $ PosEMinExp noSpan exp
-  EGMax exp -> desugarExp' $ PosEGMax noSpan exp
-  EGMin exp -> desugarExp' $ PosEGMin noSpan exp
-  EInt n -> desugarExp' $ PosEInt noSpan n
-  EDouble n -> desugarExp' $ PosEDouble noSpan n
-  EStr str  -> desugarExp' $ PosEStr noSpan str
-  ESetExp sexp -> desugarExp' $ PosESetExp noSpan sexp    
   PosDeclAllDisj s decl exp ->
       IDeclPExp IAll [desugarDecl True decl] (dpe exp)
   PosDeclAll s decl exp -> IDeclPExp IAll [desugarDecl False decl] (dpe exp)
@@ -426,7 +407,7 @@ desugarExp' x = case x of
   PosENeg s exp  -> dop iNot [exp]
   PosLtlRel s exp0 exp  -> dop iR [exp0, exp]
   PosLtlUntil s exp0 exp  -> dop iU [exp0, exp]
-  PosLtlWUntil s exp0 exp  -> dop iW [exp0, exp]
+  PosLtlWUntil s exp0 exp  -> desugarExp' $ PosEOr s (PosLtlG noSpan exp0) (PosLtlUntil noSpan exp0 exp ) -- dop iW [exp0, exp]
   PosLtlF s exp  -> dop iF [exp]
   PosLtlG s exp  -> dop iG [exp]
   PosLtlX s exp  -> dop iX [exp]
@@ -457,6 +438,49 @@ desugarExp' x = case x of
   dop = desugarOp desugarExp
   dpe = desugarPath.desugarExp
 
+adjustExp :: Exp -> Exp
+adjustExp x = case x of
+  DeclAllDisj decl exp -> PosDeclAllDisj noSpan decl exp
+  DeclAll decl exp -> PosDeclAll noSpan decl exp
+  DeclQuantDisj quant decl exp ->
+      PosDeclQuantDisj noSpan quant decl exp
+  DeclQuant quant decl exp -> PosDeclQuant noSpan quant decl exp
+  EIff exp0 exp  -> PosEIff noSpan exp0 exp
+  EImplies exp0 exp  -> PosEImplies noSpan exp0 exp
+  EImpliesElse exp0 exp1 exp  -> PosEImpliesElse noSpan exp0 exp1 exp
+  EOr exp0 exp  -> PosEOr noSpan exp0 exp
+  EXor exp0 exp  -> PosEXor noSpan exp0 exp
+  EAnd exp0 exp  -> PosEAnd noSpan exp0 exp
+  ENeg exp -> PosENeg noSpan exp
+  LtlRel exp0 exp  -> PosLtlRel noSpan exp0 exp
+  LtlUntil exp0 exp  -> PosLtlUntil noSpan exp0 exp
+  LtlWUntil exp0 exp  -> PosLtlWUntil noSpan exp0 exp
+  LtlF exp  -> PosLtlF noSpan exp
+  LtlG exp  -> PosLtlG noSpan exp
+  LtlX exp  -> PosLtlX noSpan exp
+  QuantExp quant exp  -> PosQuantExp noSpan quant exp
+  ELt  exp0 exp  -> PosELt noSpan exp0 exp
+  EGt  exp0 exp  -> PosEGt noSpan exp0 exp
+  EEq  exp0 exp  -> PosEEq noSpan exp0 exp
+  ELte exp0 exp  -> PosELte noSpan exp0 exp
+  EGte exp0 exp  -> PosEGte noSpan exp0 exp
+  ENeq exp0 exp  -> PosENeq noSpan exp0 exp
+  EIn  exp0 exp  -> PosEIn noSpan exp0 exp
+  ENin exp0 exp  -> PosENin noSpan exp0 exp
+  EAdd exp0 exp  -> PosEAdd noSpan exp0 exp
+  ESub exp0 exp  -> PosESub noSpan exp0 exp
+  EMul exp0 exp  -> PosEMul noSpan exp0 exp
+  EDiv exp0 exp  -> PosEDiv noSpan exp0 exp
+  ECSetExp exp   -> PosECSetExp noSpan exp
+  ESumSetExp sexp -> PosESumSetExp noSpan sexp  
+  EMinExp exp    -> PosEMinExp noSpan exp
+  EGMax exp -> PosEGMax noSpan exp
+  EGMin exp -> PosEGMin noSpan exp
+  EInt n -> PosEInt noSpan n
+  EDouble n -> PosEDouble noSpan n
+  EStr str  -> PosEStr noSpan str
+  ESetExp sexp -> PosESetExp noSpan sexp    
+  _ -> x
 
 desugarOp f op exps = 
     if (op == iIfThenElse)

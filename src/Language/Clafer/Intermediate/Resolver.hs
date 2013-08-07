@@ -28,6 +28,7 @@ import Data.Maybe
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Debug.Trace
 
 import Language.ClaferT
 import Language.Clafer.Common
@@ -83,7 +84,7 @@ nameIDecl (IDecl isDisj dels body) = IDecl isDisj dels `liftM` (namePExp body)
 
 -- -----------------------------------------------------------------------------
 resolveNamesModule :: ClaferArgs -> (IModule, GEnv) -> Resolve (IModule, GEnv)
-resolveNamesModule args (declarations, genv) =
+resolveNamesModule args (declarations, genv) = trace ("Starting resolveNamesModule\n") $ 
   do
     res <- foldM (flip ($)) declarations $ map (\f -> flip (curry f) genv) funs
     return (res, genv)

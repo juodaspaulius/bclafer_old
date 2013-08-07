@@ -155,29 +155,29 @@ sToken p s = PT p (TS s i)
       "disj" -> 50
       "else" -> 51
       "enum" -> 52
-      "false" -> 53
-      "globally" -> 54
-      "if" -> 55
-      "in" -> 56
-      "is" -> 57
-      "lone" -> 58
-      "max" -> 59
-      "min" -> 60
-      "mux" -> 61
-      "no" -> 62
-      "not" -> 63
-      "one" -> 64
-      "opt" -> 65
-      "or" -> 66
-      "precedes" -> 67
-      "responds" -> 68
+      "eventually" -> 53
+      "false" -> 54
+      "globally" -> 55
+      "if" -> 56
+      "in" -> 57
+      "is" -> 58
+      "lone" -> 59
+      "max" -> 60
+      "min" -> 61
+      "mux" -> 62
+      "no" -> 63
+      "not" -> 64
+      "one" -> 65
+      "opt" -> 66
+      "or" -> 67
+      "precedes" -> 68
+      "responds" -> 69
       "respondsTo" -> 69
       "some" -> 70
       "sum" -> 71     
-      "then" -> 72
-      "times" -> 73
-      "to" -> 74
-      "true" -> 75
+      "then" -> 73
+      "times" -> 74
+      "to" -> 75
       "until" -> 76
       "xor" -> 77
       "{" -> 78

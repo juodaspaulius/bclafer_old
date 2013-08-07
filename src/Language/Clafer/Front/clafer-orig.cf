@@ -1,4 +1,3 @@
-
 entrypoints Module ;
 
 
@@ -22,6 +21,8 @@ Constraint.     Constraint ::= "[" [ConstrExp] "]" ;
 SoftConstraint. SoftConstraint ::= "(" [Exp] ")";
 Goal.		Goal ::= "<<" [Exp] ">>" ;
 
+
+-- The scope's parameters for all Temporal Patterns are basically an expression 
 -- Scopes of Temporal Patterns - BEGIN
 TmpScopeGlobally.	TmpScope ::= "globally" ;
 TmpScopeGlobally.	TmpScope ::=  ;
@@ -32,22 +33,31 @@ TmpScopeAfterUntil.	TmpScope ::= "after" Exp "until" Exp ;
 
 -- Scopes of Temporal Patterns - END
 
--- List of Temporal Patterns - BEGIN
-TmpPrecedes.	        ConstrExp ::= Exp "precedes" Exp TmpScope;
-TmpRespondsTo.      	ConstrExp ::= Exp "respondsTo" Exp TmpScope;
-TmpRespondsTo.	        ConstrExp ::= Exp "responds" "to" Exp TmpScope;
 
-TmpAbsence.	            ConstrExp ::= Exp "is" "false" TmpScope ;
-TmpExistence.	        ConstrExp ::= Exp "is" "true" TmpScope ;
-TmpBoundedExistence.	ConstrExp ::= Exp "is" "true" PosInteger "times" TmpScope ;
+-- List of Temporal Patterns - BEGIN
+
+TmpPrecedes.	ConstrExp ::= Exp "precedes" Exp TmpScope;
+TmpRespondsTo.	ConstrExp ::= Exp "respondsTo" Exp TmpScope;
+TmpRespondsTo.	ConstrExp ::= Exp "responds" "to" Exp TmpScope;
+
+TmpAbsence.	ConstrExp1 ::= Exp "is" "false" TmpScope ;
+TmpUniversality.	ConstrExp1 ::= Exp TmpScope ;
+TmpBoundedExistence.	ConstrExp1 ::= Exp PosInteger "times" TmpScope ;
+TmpExistence.	ConstrExp1	::= "eventually" Exp TmpScope ;
+
+-- logical && has a higher precedence than logical ||
+ConstrExpOr.	ConstrExp2	::= ConstrExp2 "||" ConstrExp3 ;
+ConstrExpAnd.	ConstrExp3	::= ConstrExp3 "&&" ConstrExp4 ;
 
 -- Non pattern constraint
-NonPatternsExp.		ConstrExp ::= Exp;
+NonPatternsExp.		ConstrExp4 ::= Exp;
 
--- List of Temporal Patterns - END
+coercions ConstrExp 4 ;
+
 
 -- Immutable constraint
 ImmutableConstr.	ConstrExp ::= PosImmutable;
+
 
 AbstractEmpty.  Abstract ::= ;
 Abstract.       Abstract ::= "abstract" ;
@@ -60,7 +70,7 @@ ElementsList.   Elements ::= "{" [Element] "}" ;
 Subclafer.      Element ::= Clafer ;
 ClaferUse.      Element ::= "`" Name Card Elements ;
 Subconstraint.  Element ::= Constraint ;
-Subgoal.	    Element ::= Goal; 
+Subgoal.	Element ::= Goal; 
 Subsoftconstraint. Element ::=SoftConstraint;
 
 SuperEmpty.     Super ::=  ;
