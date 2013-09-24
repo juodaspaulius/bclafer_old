@@ -198,7 +198,7 @@ genClafer claferargs resPath oClafer =
 transPrimitive :: IClafer -> IClafer
 transPrimitive    clafer   = clafer{super = toOverlapping $ super clafer}
   where
-  toOverlapping x@(ISuper _ [PExp _ _ _ (IClaferId _ id _ _)])
+  toOverlapping x@(ISuper _ [PExp _ _ _ (IClaferId _ id _ _ _)])
     | isPrimitive id = x{isOverlapping = True}
     | otherwise      = x
   toOverlapping x = x
@@ -212,8 +212,8 @@ claferDecl    clafer     rest    = cconcat [card,
     {-| mutable clafer = CString ""-}
     | otherwise = genOptCard clafer
   genAbstract isAbstract = if isAbstract then "abstract " else ""
-  genExtends (ISuper False [PExp _ _ _ (IClaferId _ "clafer" _ _)]) = CString ""
-  genExtends (ISuper False [PExp _ _ _ (IClaferId _ id _ _)]) = CString " " +++ Concat NoTrace [CString $ "extends " ++ id]
+  genExtends (ISuper False [PExp _ _ _ (IClaferId _ "clafer" _ _ _)]) = CString ""
+  genExtends (ISuper False [PExp _ _ _ (IClaferId _ id _ _ _)]) = CString " " +++ Concat NoTrace [CString $ "extends " ++ id]
   -- todo: handle multiple inheritance
   genExtends _ = CString ""
 
@@ -270,7 +270,7 @@ getTarget    x     = case x of
   _ -> x
 
 genType :: ClaferArgs -> PExp                              -> Concat
-genType    claferargs    x@(PExp _ _ _ y@(IClaferId _ _ _ _)) = genPExp (GenEnv claferargs [] Nothing)
+genType    claferargs    x@(PExp _ _ _ y@(IClaferId _ _ _ _ _)) = genPExp (GenEnv claferargs [] Nothing)
   x{Language.Clafer.Intermediate.Intclafer.exp = y{isTop = True}}
 
 genType claferargs x = genPExp (GenEnv claferargs [] Nothing) x
@@ -284,10 +284,10 @@ genType claferargs x = genPExp (GenEnv claferargs [] Nothing) x
 containsTimedRel :: PExp -> Bool
 containsTimedRel pexp@(PExp iType _ _ exp) =  case exp of 
   IFunExp _ exps -> bOrFoldl1 $ map containsTimedRel exps
-  IClaferId _ sident isTop (Just mutable) -> timedIClaferId 
+  IClaferId _ sident isTop (Just mutable) _ -> timedIClaferId 
     where 
     timedIClaferId
-      | sident == ref = mutable
+      | sident == "ref" =  mutable
       | head sident == '~' = False 
       | isNothing iType = checkIfMut
       | otherwise = case fromJust $ iType of
@@ -329,7 +329,7 @@ genMutSubClafersConst claferargs clafer = genTimeDecl allSubExp +++ (cintercalat
   where
   allSubExp = map genMutCardConst mutClafers ++ refCardConst
   refCardConst 
-    | isOverlapping $ super clafer = [CString $ (cardStr clafer) ++ " " ++ (refRelName claferargs clafer) ++ ".t"]
+    | (mutable clafer) && (isOverlapping $ super clafer) = [CString $ "one this.@" ++ (refRelName claferargs clafer) ++ ".t"]
     | otherwise = []
   isMutableNonRef clafer = (not.isOverlapping $ super clafer) && (mutable clafer)
   mutClafers = filter isMutableNonRef $ getSubclafers $ elements clafer
@@ -391,7 +391,7 @@ isRefPath clafer = (isOverlapping $ super clafer) &&
   s = supers $ super clafer
 
 isSimplePath :: [PExp] -> Bool
-isSimplePath    [PExp _ _ _ (IClaferId _ _ _ _)] = True
+isSimplePath    [PExp _ _ _ (IClaferId _ _ _ _ _)] = True
 isSimplePath    [PExp _ _ _ (IFunExp op _)] = op == iUnion
 isSimplePath    _ = False
 
@@ -466,12 +466,12 @@ genPExp'    env       x@(PExp iType pid pos exp) = case exp of
     where
     optBar [] = ""
     optBar _  = " | "
-  IClaferId _ "ref" _ isMutable -> CString $ "@ref" ++ timeJoin
+  IClaferId _ "ref" _ isMutable _ -> CString $ "@ref" ++ timeJoin
     where
     timeJoin = case (isMutable, time env) of 
       (Just True, Just t) -> "." ++ t
       _ -> "" 
-  IClaferId _ sident isTop isMutable -> CString $
+  IClaferId _ sident isTop isMutable _ -> CString $
       if head sident == '~' then sident else
       if isNothing iType then sident' else case fromJust $ iType of
     TInteger -> vsident
@@ -559,7 +559,7 @@ optBrArg :: GenEnv -> PExp -> Concat
 optBrArg    env       x     =  brFun (genPExp' env) x
   where
   brFun = case x of
-    PExp _ _ _ (IClaferId _ _ _ _) -> ($)
+    PExp _ _ _ (IClaferId _ _ _ _ _) -> ($)
     PExp _ _ _ (IInt _) -> ($)
     _  -> brArg
 
@@ -602,7 +602,7 @@ adjustIExp env x = case x of
     where
     (adjNav, adjExps) = if op == iJoin then (aNav, id)
                         else (id, adjustPExp env)
-  IClaferId _ _ _ _ -> aNav x
+  IClaferId _ _ _ _ _ -> aNav x
   _  -> x
   where
   aNav = fst.(adjustNav env)
@@ -617,7 +617,7 @@ adjustNav env x@(IFunExp op (pexp0:pexp:_))
   (iexp0, path) = adjustNav env (Language.Clafer.Intermediate.Intclafer.exp pexp0)
   (iexp, path') = adjustNav env{resPath = path}  (Language.Clafer.Intermediate.Intclafer.exp pexp)
 
-adjustNav env x@(IClaferId _ id _ _)
+adjustNav env x@(IClaferId _ id _ _ _)
   | id == parent = (x{sident = "~@" ++ (genRelName $ head (resPath env))}, tail (resPath env))
   | otherwise    = (x, resPath env)
 

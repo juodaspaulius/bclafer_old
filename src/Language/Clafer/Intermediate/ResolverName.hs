@@ -68,6 +68,10 @@ data HowResolved =
   
 type Resolve = Either ClaferSErr
 
+instance (Show err, Show a, DebugShow a) => DebugShow (Either err a) where
+  dshow (Right a) = dshow a
+  dshow x = show x
+
 -- initialize the cache (env)
 defSEnv genv declarations = env {aClafers = rCl aClafers',
                                  cClafers = rCl cClafers'}
@@ -152,11 +156,11 @@ resolveIExp pos env x = case x of
     let (decls', env') = runState (runErrorT $ (mapM (ErrorT . processDecl) decls)) env
     IDeclPExp quant <$> decls' <*> resolvePExp env' pexp
 
-  IFunExp op exps -> if op == iJoin then resNav else IFunExp op <$> mapM res exps
+  IFunExp op exps -> if op == iJoin then trace ("\n ------- \n resolving iJoin exp: "++ dshow x ++ "\n result is: " ++ dshow resNav ) (resNav) else IFunExp op <$> mapM res exps
   IInt n -> return x
   IDouble n -> return x
   IStr str -> return x
-  IClaferId _ _ _ _ -> resNav
+  IClaferId _ _ _ _ _-> resNav
   where
   res = resolvePExp env
   resNav = fst <$> resolveNav pos env x True
@@ -174,11 +178,11 @@ processDecl decl = runErrorT $ do
 resolveNav :: Span -> SEnv -> IExp -> Bool -> Resolve (IExp, [IClafer])
 resolveNav pos env x isFirst = case x of
   IFunExp _ (pexp0:pexp:_) -> do
-    (exp0', path) <- resolveNav (inPos pexp0) env (Language.Clafer.Intermediate.Intclafer.exp pexp0) True
+    (exp0', path) <- resolveNav (inPos pexp0) env (I.exp pexp0) True
     (exp', path') <- resolveNav (inPos pexp) env {context = listToMaybe path, resPath = path}
-                     (Language.Clafer.Intermediate.Intclafer.exp pexp) False
+                     (I.exp pexp) False
     return (IFunExp iJoin [pexp0{I.exp=exp0'}, pexp{I.exp=exp'}], path')
-  IClaferId modName id _ _ -> out -- trace ("resolved id: " ++ id ++ "\nwith: " ++ show out ++ "\n") out
+  IClaferId modName id _ _ _-> out -- trace ("resolved id: " ++ id ++ "\nwith: " ++ show out ++ "\n") out
     where
     out
       | isFirst   = mkPath env <$> resolveName pos env id
@@ -187,10 +191,10 @@ resolveNav pos env x isFirst = case x of
 
 -- depending on how resolved construct a path
 mkPath :: SEnv -> (HowResolved, String, [IClafer]) -> (IExp, [IClafer])
-mkPath env (howResolved, id, path) =  case howResolved of -- trace ("resolving id=" ++ id ++ " howResolved: " ++ (show howResolved) ++ "\n") $
-  Binding -> (mkLClaferId id True Nothing, path)
+mkPath env (howResolved, id, path) =  trace ("\nIn mkPath; resolved id: " ++ id ++ " using strategy: " ++ show howResolved ++ "\n") $ case howResolved of 
+  Binding -> (mkLClaferId id True Nothing UnknownBind, path)
   Special -> (specIExp, path)
-  TypeSpecial ->  (mkLClaferId id True Nothing, path)
+  TypeSpecial ->  (mkLClaferId id True Nothing UnknownBind, path)
   Subclafers -> (toNav $ (mkIClaferId' this True) : (map mkIClaferId $ tail $ reverse path), path)
   Ancestor -> (toNav (mkThis : adjustedAnc), path)
     where 
@@ -200,21 +204,30 @@ mkPath env (howResolved, id, path) =  case howResolved of -- trace ("resolving i
   mkThis = mkIClaferId' this False
   mut = mutable (head path)
   specIExp 
-    | id == this = mkLClaferId id True Nothing
-    | id == ref = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos (mkLClaferId id True $ Just mut)]
-    | otherwise = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos (mkLClaferId id True Nothing)]
+    | id == this = mkLClaferId id True Nothing UnknownBind
+    | id == ref = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos (mkLClaferId id True (Just mut) UnknownBind)]
+    | otherwise = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos (mkLClaferId id True Nothing UnknownBind)]
 
+mkPath' modName (howResolved, id, path) =trace ("\nIn mkPath'; resolved id: " ++ id ++ " using strategy: " ++ show howResolved ++ "\n") $ case howResolved of
+  Reference  -> {- trace ("\nFound by dereferencing. path:\n" ++ (unlines $ map show path)) -} (toNav [(mkLClaferId "ref" False mut' bind'), mkIClaferId (head path)], path)
+  _ -> (IClaferId modName id False mut bind, path)
+  where 
+  previousElem = head $ drop 1 path
+  bind = ClaferBind (head path)
+  bind' = ClaferBind previousElem
+  mut = Just $ mutable (head path)
+  mut' = Just $ mutable previousElem
 
 mkIClaferId :: IClafer -> IExp 
-mkIClaferId cl = mkLClaferId (uid cl) False mut
+mkIClaferId cl = mkLClaferId (uid cl) False mut $ ClaferBind cl
   where
-  mut = Just $ mutable cl
-  {-mut | isOverlapping $ super cl = Nothing-}
-      {-| otherwise = (Just $ mutable cl)-}
+  {-mut = Just $ mutable cl-}
+  mut | isOverlapping $ super cl = Nothing
+      | otherwise = (Just $ mutable cl)
 
 
 mkIClaferId' :: String -> Bool -> IExp
-mkIClaferId' id top = mkLClaferId id top Nothing
+mkIClaferId' id top = mkLClaferId id top Nothing UnknownBind
 
 toNav :: [IExp] -> IExp
 toNav p = mkIFunExp iJoin p
@@ -225,14 +238,7 @@ adjustAncestor cPath rPath = parents ++ (fromJust $ stripPrefix prefix rPath)
   where
   parents = replicate (length $ fromJust $ stripPrefix prefix cPath) $ parentId
   prefix  = fst $ unzip $ takeWhile (uncurry (==)) $ zip cPath rPath
-  parentId = mkLClaferId parent False Nothing
-
-
-mkPath' modName (howResolved, id, path) = case howResolved of
-  Reference  -> (toNav [(mkLClaferId "ref" False mut), mkIClaferId (head path)], path)
-  _ -> (IClaferId modName id False mut, path)
-  where 
-  mut = Just $ mutable (head path)
+  parentId = mkLClaferId parent False Nothing UnknownBind
 
 -- -----------------------------------------------------------------------------
 

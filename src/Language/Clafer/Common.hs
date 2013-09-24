@@ -63,14 +63,14 @@ getSuperId = sident . Language.Clafer.Intermediate.Intclafer.exp . head
 
 isEqClaferId = flip $ (==).uid
 
-idToPExp :: String -> Span -> String -> String -> Bool -> Maybe Bool -> PExp
-idToPExp pid pos modids id isTop mutable = PExp (Just $ TClafer [id]) pid pos (IClaferId modids id isTop mutable)
+idToPExp :: String -> Span -> String -> String -> Bool -> Maybe Bool ->  IClaferIdBinding -> PExp
+idToPExp pid pos modids id isTop mutable binding = PExp (Just $ TClafer [id]) pid pos (IClaferId modids id isTop mutable binding)
 
-mkLClaferId :: String -> Bool -> Maybe Bool -> IExp
-mkLClaferId id isTop mutable = IClaferId "" id isTop mutable
+mkLClaferId :: String -> Bool -> Maybe Bool -> IClaferIdBinding -> IExp
+mkLClaferId id isTop mutable binding = IClaferId "" id isTop mutable binding
 
-mkPLClaferId :: String -> Bool -> Maybe Bool -> PExp
-mkPLClaferId id isTop mutable = pExpDefPidPos $ mkLClaferId id isTop mutable
+mkPLClaferId :: String -> Bool -> Maybe Bool -> IClaferIdBinding -> PExp
+mkPLClaferId id isTop mutable binding = pExpDefPidPos $ mkLClaferId id isTop mutable binding 
 
 pExpDefPidPos :: IExp -> PExp
 pExpDefPidPos = pExpDefPid noSpan
@@ -81,24 +81,24 @@ pExpDefPid = pExpDef ""
 pExpDef :: String -> Span -> IExp -> PExp
 pExpDef = PExp Nothing
 
-isParent (PExp _ _ _ (IClaferId _ id _ _)) = id == parent
+isParent (PExp _ _ _ (IClaferId _ id _ _ _)) = id == parent
 isParent _ = False
 
 isClaferName :: PExp -> Bool
-isClaferName (PExp _ _ _ (IClaferId _ id _ _)) =
+isClaferName (PExp _ _ _ (IClaferId _ id _ _ _)) =
   id `notElem` ([this, parent, children] ++ primitiveTypes)
 isClaferName _ = False
 
 isClaferName' :: PExp -> Bool
-isClaferName' (PExp _ _ _ (IClaferId _ id _ _)) = True
+isClaferName' (PExp _ _ _ (IClaferId _ id _ _ _)) = True
 isClaferName' _ = False
 
 isMutableClaferName :: PExp -> Bool
-isMutableClaferName (PExp _ _ _ (IClaferId _ id _ (Just True))) = True
+isMutableClaferName (PExp _ _ _ (IClaferId _ id _ (Just True) _)) = True
 isMutableClaferName _ = False
 
 getClaferName :: PExp -> String
-getClaferName (PExp _ _ _ (IClaferId _ id _ _)) = id
+getClaferName (PExp _ _ _ (IClaferId _ id _ _ _)) = id
 getClaferName _ = ""
 
 -- -----------------------------------------------------------------------------
@@ -288,7 +288,7 @@ voidf f = do
 containsMutable :: PExp -> Bool
 containsMutable pexp@(PExp _ _ _ exp) = case exp of 
   (IFunExp _ exps) -> bOrFoldl1 $ map containsMutable exps
-  (IClaferId _ _ _ (Just mutable)) -> mutable
+  (IClaferId _ _ _ (Just mutable) _) -> mutable
   (IDeclPExp _ decls e) -> bOrFoldl1 (map containsMut decls) || containsMutable e
   _ -> False
   where 

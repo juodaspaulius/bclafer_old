@@ -21,7 +21,12 @@
 -}
 module Language.Clafer.Intermediate.Intclafer where
 
+import Data.List
 import Language.Clafer.Front.Absclafer
+
+class Show a => DebugShow a where
+  dshow :: a -> String
+  dshow x = show x
 
 data IType = TBoolean
            | TString
@@ -59,6 +64,10 @@ data IClafer =
       elements :: [IElement]  -- subclafers or constraints specified in the context of given clafer
     }
   deriving (Eq,Ord,Show)
+
+instance DebugShow IClafer where
+  dshow clafer = "IClafer {ident = \"" ++ ident clafer ++"\"}"
+
 
 -- Clafer's subelement is either a clafer of a constraint
 data IElement =
@@ -99,6 +108,9 @@ data PExp = PExp {
     }
   deriving (Eq,Ord,Show)
 
+instance DebugShow PExp where
+  dshow (PExp _ _ _ x) = dshow x
+
 data IExp = 
    -- quantified expression with declarations
    IDeclPExp {quant :: IQuant, oDecls :: [IDecl], bpexp :: PExp}
@@ -110,9 +122,24 @@ data IExp =
       modName :: String,         -- module name
       sident :: String,          -- name
       isTop :: Bool,             -- identifier refers to a top-level definition
-      isMutable :: Maybe Bool    -- referenced clafer is mutable in its context
+      isMutable :: Maybe Bool,    -- referenced clafer is mutable in its context
+      binding :: IClaferIdBinding
     }
   deriving (Eq,Ord,Show)
+  
+instance DebugShow IExp where
+  dshow (IFunExp op exps) = "IFunExp {op = \"" ++ op ++ "\", exps = [" ++ (concat . intersperse ", " $ map dshow exps) ++ "]} "
+  dshow (IClaferId _ sident _ mut bind) = "IClaferId {sident = \"" ++ sident ++ "\", isMutable = " ++ show mut ++ ", binding = " ++ dshow bind ++ "} "
+  dshow x = show x
+
+data IClaferIdBinding = 
+    ClaferBind {iClafer :: IClafer}
+  | UnknownBind
+  deriving (Eq, Ord, Show)
+      
+instance DebugShow IClaferIdBinding where
+  dshow (ClaferBind clafer) = dshow clafer
+  dshow x = show x
 
 {-
 For IFunExp standard set of operators includes:
@@ -169,3 +196,11 @@ data IQuant =
 
 type LineNo = Integer
 type ColNo  = Integer
+
+instance DebugShow IDecl
+instance DebugShow IElement
+instance DebugShow IGCard
+instance DebugShow IModule
+instance DebugShow IQuant
+instance DebugShow ISuper
+instance DebugShow IType

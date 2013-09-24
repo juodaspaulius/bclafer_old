@@ -190,10 +190,10 @@ getIfThenElseType t1 t2 =
     if (value == Just "clafer") then Nothing else value
 
 resolveTModule :: (IModule, GEnv) -> Either ClaferSErr IModule
-resolveTModule (imodule, _) = trace ("Starting resolveTModule\n" ++ show imodule) $ 
+resolveTModule (imodule, _) = 
   case runTypeAnalysis (analysis $ mDecls imodule) imodule of
     Right mDecls' -> return imodule{mDecls = mDecls'}
-    Left err      -> trace ("Found error in resolveTModule: " ++ show err ++  "\n") $ throwError err
+    Left err      -> throwError err
   where
   analysis decls = mapM (resolveTElement $ rootUid) decls
 
@@ -221,7 +221,7 @@ resolveTConstraint curThis constraint =
     
 
 resolveTPExp :: PExp -> TypeAnalysis [PExp]
-resolveTPExp p = -- trace ("resolving type for " ++ show p ++ "\n") $ 
+resolveTPExp p =
   do
     x <- resolveTPExp' p
     case partitionEithers x of
@@ -230,7 +230,7 @@ resolveTPExp p = -- trace ("resolving type for " ++ show p ++ "\n") $
       (_,   xs) -> return xs                          -- Case 3: At least one success.
 
 resolveTPExp' :: PExp -> TypeAnalysis [Either ClaferSErr PExp]
-resolveTPExp' p@PExp{inPos, exp = IClaferId{sident = "ref"}} = trace ("resolving type for " ++ show p ++ "\n") $ 
+resolveTPExp' p@PExp{inPos, exp = IClaferId{sident = "ref"}} = 
   runListT $ runErrorT $ do
     curPath' <- curPath
     case curPath' of
@@ -375,14 +375,17 @@ resolveTPExp' p@PExp{inPos, exp} =
 
 -- Adds "refs" at the end, effectively dereferencing Clafers when needed.
 addRef :: PExp -> ErrorT ClaferSErr (ListT TypeAnalysis) PExp
-addRef pexp =
+addRef pexp@(PExp _ _ _ iexp) =
   do
     localCurPath (typeOf pexp) $ do
-      deref <- (ErrorT $ ListT $ resolveTPExp' $ newPExp $ IClaferId "" "ref" False Nothing) `catchError` const (lift mzero)
+      deref <- (ErrorT $ ListT $ resolveTPExp' $ newPExp $ IClaferId "" "ref" False mut UnknownBind) `catchError` const (lift mzero)
       let result = (newPExp $ IFunExp iJoin [pexp, deref]) `withType` typeOf deref
       return result <++> addRef result
   where
   newPExp = PExp Nothing "" $ inPos pexp
+  mut = case iexp of 
+    IClaferId _ _ _ _ (ClaferBind iClafer) -> Just $ mutable iClafer
+    _ -> Nothing
   
 typeOf :: PExp -> IType
 typeOf pexp = fromMaybe (error "No type") $ iType pexp

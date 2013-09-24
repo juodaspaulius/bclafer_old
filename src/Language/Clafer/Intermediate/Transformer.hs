@@ -54,11 +54,12 @@ transIExp t x = case x of
   where
   x'=transIJoinRef x
 
-transIJoinRef x@(IFunExp iJoin exps@(e1:e2:_)) = case (ie1,ie2) of
-  (IClaferId _ _ _ mut1, IClaferId _ "ref" _ _) -> trace ("transforming iJoin reference expression \n") $ x{exps = [transPExp1, transPExp2]}
+transIJoinRef x@(IFunExp "." exps@(e1:e2:_)) = case (ie1,ie2) of
+  (IClaferId _ _ _ (Just mut1) _, IClaferId _ "ref" _ _ _) -> {- trace ("\ntransforming iJoin reference expression \n e1="++ show e1 ++ "\ne2="++ show e2) $ -}
+    x{exps = [transPExp1, transPExp2]}
     where 
     transPExp1 = e1{exp=ie1{isMutable=Nothing}}
-    transPExp2 = e2{exp=ie2{isMutable=mut1}}
+    transPExp2 = e2{exp=ie2{isMutable=(Just mut1)}}
   _ -> x
   where
   (PExp _ _ _ ie1) = e1

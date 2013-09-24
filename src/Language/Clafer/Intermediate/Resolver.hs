@@ -84,7 +84,7 @@ nameIDecl (IDecl isDisj dels body) = IDecl isDisj dels `liftM` (namePExp body)
 
 -- -----------------------------------------------------------------------------
 resolveNamesModule :: ClaferArgs -> (IModule, GEnv) -> Resolve (IModule, GEnv)
-resolveNamesModule args (declarations, genv) = trace ("Starting resolveNamesModule\n") $ 
+resolveNamesModule args (declarations, genv) = 
   do
     res <- foldM (flip ($)) declarations $ map (\f -> flip (curry f) genv) funs
     return (res, genv)

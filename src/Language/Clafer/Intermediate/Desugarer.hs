@@ -117,7 +117,7 @@ desugarSuper x = case x of
   SuperEmpty  -> desugarSuper $ PosSuperEmpty noSpan
   SuperSome superhow setexp -> desugarSuper $ PosSuperSome noSpan superhow setexp
   PosSuperEmpty s ->
-      ISuper False [PExp (Just $ TClafer []) "" s $ mkLClaferId baseClafer True Nothing]
+      ISuper False [PExp (Just $ TClafer []) "" s $ mkLClaferId baseClafer True Nothing UnknownBind]
   PosSuperSome s superhow setexp ->
       ISuper (desugarSuperHow superhow) [desugarSetExp setexp]
 
@@ -136,7 +136,7 @@ desugarInit x = case x of
   PosInitEmpty s  -> []
   PosInitSome s inithow exp  ->
       [IEConstraint (desugarInitHow inithow) 
-      (pExpDefPidPos (IFunExp "=" [mkPLClaferId "this" False Nothing, desugarExp exp]))] -- TODO "this" can also be mutable?
+      (pExpDefPidPos (IFunExp "=" [mkPLClaferId "this" False Nothing UnknownBind, desugarExp exp]))] -- TODO "this" can also be mutable?
 
 
 desugarInitHow :: InitHow -> Bool
@@ -151,7 +151,7 @@ desugarName x = case x of
   Path path -> desugarName $ PosPath noSpan path
   PosPath s path ->
       IClaferId (concatMap ((++ modSep).desugarModId) (init path))
-                (desugarModId $ last path) True Nothing
+                (desugarModId $ last path) True Nothing UnknownBind
 
 desugarModId x = case x of
   ModIdIdent id -> desugarModId $ PosModIdIdent noSpan id
@@ -544,7 +544,7 @@ sugarExp' x = case x of
   IInt n -> EInt $ PosInteger ((0, 0), show n)
   IDouble n -> EDouble $ PosDouble ((0, 0), show n)
   IStr str -> EStr $ PosString ((0, 0), str)
-  IClaferId _ _ _ _ -> ESetExp $ sugarSetExp' x
+  IClaferId _ _ _ _ _ -> ESetExp $ sugarSetExp' x
   where
   sugarUnOp op
     | op == iNot           = ENeg
@@ -594,8 +594,8 @@ sugarSetExp' x = case x of
       | op == iDomain        = Domain
       | op == iRange         = Range
       | op == iJoin          = Join
-  IClaferId "" id _ _ -> ClaferId $ Path [ModIdIdent $ mkIdent id]
-  IClaferId modName id _ _ -> ClaferId $ Path $ (sugarModId modName) : [sugarModId id]
+  IClaferId "" id _ _ _ -> ClaferId $ Path [ModIdIdent $ mkIdent id]
+  IClaferId modName id _ _ _ -> ClaferId $ Path $ (sugarModId modName) : [sugarModId id]
 
 desugarPath :: PExp -> PExp
 desugarPath (PExp iType pid pos x) = reducePExp $ PExp iType pid pos result
@@ -609,7 +609,7 @@ desugarPath (PExp iType pid pos x) = reducePExp $ PExp iType pid pos result
 
 
 isSet :: IExp -> Bool
-isSet (IClaferId _ _ _ _)  = True
+isSet (IClaferId _ _ _ _ _)  = True
 isSet (IFunExp op _) = op `elem` setBinOps
 isSet _ = False
 
