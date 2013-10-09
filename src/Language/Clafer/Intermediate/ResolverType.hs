@@ -282,7 +282,7 @@ resolveTPExp' p@PExp{inPos, exp} =
       arg' <- lift $ ListT $ resolveTPExp arg
       let t = typeOf arg'
       let test c =
-            unless c $
+            unless c $  
               throwError $ SemanticErr inPos ("Function '" ++ op ++ "' cannot be performed on " ++ op ++ " '" ++ str t ++ "'")
       let result
             | op `elem` (iNot: unLtlOps) = test (t == TBoolean) >> return TBoolean

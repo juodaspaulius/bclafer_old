@@ -156,7 +156,7 @@ resolveIExp pos env x = case x of
     let (decls', env') = runState (runErrorT $ (mapM (ErrorT . processDecl) decls)) env
     IDeclPExp quant <$> decls' <*> resolvePExp env' pexp
 
-  IFunExp op exps -> if op == iJoin then trace ("\n ------- \n resolving iJoin exp: "++ dshow x ++ "\n result is: " ++ dshow resNav ) (resNav) else IFunExp op <$> mapM res exps
+  IFunExp op exps -> if op == iJoin then resNav else IFunExp op <$> mapM res exps
   IInt n -> return x
   IDouble n -> return x
   IStr str -> return x
@@ -191,7 +191,7 @@ resolveNav pos env x isFirst = case x of
 
 -- depending on how resolved construct a path
 mkPath :: SEnv -> (HowResolved, String, [IClafer]) -> (IExp, [IClafer])
-mkPath env (howResolved, id, path) =  trace ("\nIn mkPath; resolved id: " ++ id ++ " using strategy: " ++ show howResolved ++ "\n") $ case howResolved of 
+mkPath env (howResolved, id, path) =   case howResolved of 
   Binding -> (mkLClaferId id True Nothing UnknownBind, path)
   Special -> (specIExp, path)
   TypeSpecial ->  (mkLClaferId id True Nothing UnknownBind, path)
@@ -208,7 +208,7 @@ mkPath env (howResolved, id, path) =  trace ("\nIn mkPath; resolved id: " ++ id 
     | id == ref = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos (mkLClaferId id True (Just mut) UnknownBind)]
     | otherwise = IFunExp iJoin [pExpDefPidPos mkThis, pExpDefPidPos (mkLClaferId id True Nothing UnknownBind)]
 
-mkPath' modName (howResolved, id, path) =trace ("\nIn mkPath'; resolved id: " ++ id ++ " using strategy: " ++ show howResolved ++ "\n") $ case howResolved of
+mkPath' modName (howResolved, id, path) = case howResolved of
   Reference  -> {- trace ("\nFound by dereferencing. path:\n" ++ (unlines $ map show path)) -} (toNav [(mkLClaferId "ref" False mut' bind'), mkIClaferId (head path)], path)
   _ -> (IClaferId modName id False mut bind, path)
   where 
