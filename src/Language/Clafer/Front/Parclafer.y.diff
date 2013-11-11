@@ -1,6 +1,6 @@
---- Parclafer.y	2013-07-12 23:05:12.493148000 +0200
-+++ Parclafer_new.y	2013-07-12 23:07:45.828805000 +0200
-@@ -120,7 +120,7 @@
+--- Parclafer-old.y	2013-11-10 20:26:58.866944000 -0600
++++ Parclafer.y	2013-11-11 03:28:47.559160000 -0600
+@@ -122,7 +122,7 @@
  
  
  Declaration :: { Declaration }
@@ -9,7 +9,7 @@
    | Element { ElementDecl $1 }
  
  
-@@ -129,15 +129,15 @@
+@@ -131,15 +131,15 @@
  
  
  Constraint :: { Constraint }
@@ -28,7 +28,7 @@
  
  
  TmpScope :: { TmpScope }
-@@ -182,17 +182,17 @@
+@@ -196,17 +196,17 @@
  
  Abstract :: { Abstract }
  Abstract : {- empty -} { AbstractEmpty } 
@@ -49,7 +49,7 @@
    | Constraint { Subconstraint $1 }
    | Goal { Subgoal $1 }
    | SoftConstraint { Subsoftconstraint $1 }
-@@ -204,9 +204,9 @@
+@@ -218,9 +218,9 @@
  
  
  SuperHow :: { SuperHow }
@@ -62,7 +62,7 @@
  
  
  Init :: { Init }
-@@ -215,24 +215,24 @@
+@@ -229,24 +229,24 @@
  
  
  InitHow :: { InitHow }
@@ -96,7 +96,7 @@
    | PosInteger { CardNum $1 }
    | NCard { CardInterval $1 }
  
-@@ -242,7 +242,7 @@
+@@ -256,7 +256,7 @@
  
  
  ExInteger :: { ExInteger }
@@ -105,7 +105,7 @@
    | PosInteger { ExIntegerNum $1 }
  
  
-@@ -251,16 +251,16 @@
+@@ -265,8 +265,8 @@
  
  
  Exp :: { Exp }
@@ -116,45 +116,64 @@
    | Quant 'disj' Decl '|' Exp { DeclQuantDisj $1 $3 $5 }
    | Quant Decl '|' Exp { DeclQuant $1 $2 $4 }
    | Exp1 { $1 }
+@@ -284,12 +284,12 @@
  
  
- Exp1 :: { Exp }
--Exp1 : 'max' Exp2 { EGMax $2 } 
--  | 'min' Exp2 { EGMin $2 }
-+Exp1 : 'max' Exp2 { PosEGMax (gp $1) $2 } 
-+  | 'min' Exp2 { PosEGMin (gp $1) $2 }
-   | Exp1 '<=>' Exp2 { EIff $1 $3 }
-   | Exp2 { $1 }
- 
-@@ -304,7 +304,7 @@
+ Exp2 :: { Exp }
+-Exp2 : 'max' Exp3 { EGMax $2 } 
++Exp2 : 'max' Exp3 { PosEGMax (gp $1) $2 } 
+   | Exp3 { $1 }
  
  
- Exp9 :: { Exp }
--Exp9 : '!' Exp10 { ENeg $2 } 
-+Exp9 : '!' Exp10 { PosENeg (gp $1) $2 } 
-   | Exp10 { $1 }
+ Exp3 :: { Exp }
+-Exp3 : 'min' Exp4 { EGMin $2 } 
++Exp3 : 'min' Exp4 { PosEGMin (gp $1) $2 } 
+   | Exp4 { $1 }
  
  
-@@ -338,14 +338,14 @@
+@@ -326,18 +326,18 @@
  
  
- Exp14 :: { Exp }
--Exp14 : 'sum' Exp15 { ESumSetExp $2 } 
--  | '#' Exp15 { ECSetExp $2 }
--  | '-' Exp15 { EMinExp $2 }
-+Exp14 : 'sum' Exp15 { PosESumSetExp (gp $1) $2 } 
-+  | '#' Exp15 { PosECSetExp (gp $1) $2 }
-+  | '-' Exp15 { PosEMinExp (gp $1) $2 }
-   | Exp15 { $1 }
+ Exp10 :: { Exp }
+-Exp10 : 'F' Exp11 { LtlF $2 } 
+-  | 'G' Exp11 { LtlG $2 }
++Exp10 : 'F' Exp11 { PosLtlF (gp $1) $2 } 
++  | 'G' Exp11 { PosLtlG (gp $1) $2 }
+   | Exp11 { $1 }
  
  
- Exp15 :: { Exp }
--Exp15 : 'if' Exp15 'then' Exp15 'else' Exp16 { EImpliesElse $2 $4 $6 } 
-+Exp15 : 'if' Exp15 'then' Exp15 'else' Exp16 { PosEImpliesElse (gp $1) $2 $4 $6 } 
-   | Exp16 { $1 }
+ Exp11 :: { Exp }
+-Exp11 : 'X' Exp12 { LtlX $2 } 
++Exp11 : 'X' Exp12 { PosLtlX (gp $1) $2 } 
+   | Exp12 { $1 }
  
  
-@@ -398,10 +398,10 @@
+ Exp12 :: { Exp }
+-Exp12 : '!' Exp13 { ENeg $2 } 
++Exp12 : '!' Exp13 { PosENeg (gp $1) $2 } 
+   | Exp13 { $1 }
+ 
+ 
+@@ -365,14 +365,14 @@
+ 
+ 
+ Exp17 :: { Exp }
+-Exp17 : 'sum' Exp18 { ESumSetExp $2 } 
+-  | '#' Exp18 { ECSetExp $2 }
+-  | '-' Exp18 { EMinExp $2 }
++Exp17 : 'sum' Exp18 { PosESumSetExp (gp $1) $2 } 
++  | '#' Exp18 { PosECSetExp (gp $1) $2 }
++  | '-' Exp18 { PosEMinExp (gp $1) $2 }
+   | Exp18 { $1 }
+ 
+ 
+ Exp18 :: { Exp }
+-Exp18 : 'if' Exp18 'then' Exp18 'else' Exp19 { EImpliesElse $2 $4 $6 } 
++Exp18 : 'if' Exp18 'then' Exp18 'else' Exp19 { PosEImpliesElse (gp $1) $2 $4 $6 } 
+   | Exp19 { $1 }
+ 
+ 
+@@ -419,10 +419,10 @@
  
  
  Quant :: { Quant }
@@ -169,16 +188,14 @@
  
  
  EnumId :: { EnumId }
-@@ -468,13 +468,20 @@
+@@ -489,14 +489,19 @@
  thenM :: Err a -> (a -> Err b) -> Err b
  thenM = (>>=)
  
-+
 +gp x@(PT (Pn _ l c) _) = Span (Pos (toInteger l) (toInteger c)) (Pos (toInteger l) (toInteger c + toInteger (length $ prToken x)))
 +pp (PT (Pn _ l c) _ :_) = Pos (toInteger l) (toInteger c)
 +pp (Err (Pn _ l c) :_) = Pos (toInteger l) (toInteger c)
 +pp _ = error "EOF" -- End of file. What to do here?
-+
 +
  happyError :: [Token] -> Err a
  happyError ts =
@@ -188,8 +205,10 @@
      [] -> []
 -    [Err _] -> " due to lexer error"
 -    _ -> " before " ++ unwords (map (id . prToken) (take 4 ts))
+-
 +    [Err _] -> "due to lexer error"
 +    _ -> "before " ++ unwords (map (id . prToken) (take 4 ts))
- 
++ 
  myLexer = tokens
  }
+ 

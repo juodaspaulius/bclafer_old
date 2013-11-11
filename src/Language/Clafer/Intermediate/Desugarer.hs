@@ -191,37 +191,10 @@ desugarConstraint x = case x of
 -- Desugar patterns
 desugarConstrExp :: ConstrExp -> Maybe Exp
 desugarConstrExp x =  case x of
-  NonPatternsExp e -> desugarConstrExp $ PosNonPatternsExp noSpan e
-  PosNonPatternsExp s e -> Just e
-  TmpPrecedes e1 e2 scope -> desugarConstrExp $ PosTmpPrecedes noSpan e1 e2 scope 
-  TmpRespondsTo e1 e2 scope -> desugarConstrExp $ PosTmpRespondsTo noSpan e1 e2 scope 
-  TmpAbsence e scope -> desugarConstrExp $ PosTmpAbsence noSpan e scope 
-  TmpUniversality e scope -> desugarConstrExp $ PosTmpUniversality noSpan e scope 
-  TmpExistence e scope -> desugarConstrExp $ PosTmpExistence noSpan e scope 
-  TmpBoundedExistence e q scope -> desugarConstrExp $ PosTmpBoundedExistence noSpan e q scope 
-  ConstrExpOr e1 e2 -> desugarConstrExp $ PosConstrExpOr noSpan e1 e2
-  PosTmpPrecedes s e1 e2 scope -> desugarTmpPrecedes s e1 e2 $ desugarTmpScope scope
--- desugarTmpPrecedes e1 e2 scope = PExp Nothing 
-  _ -> Nothing
--- TODO
-
-desugarTmpScope scope = case scope of
-   TmpScopeGlobally -> PosTmpScopeGlobally noSpan
-   TmpScopeBefore e -> PosTmpScopeBefore noSpan $ adjustExp e
-   TmpScopeAfter e -> PosTmpScopeAfter noSpan $ adjustExp e
-   TmpScopeBetweenAnd e1 e2 -> PosTmpScopeBetweenAnd noSpan (adjustExp e1) (adjustExp e2)
-   TmpScopeAfterUntil e1 e2 -> PosTmpScopeAfterUntil noSpan (adjustExp e1) (adjustExp e2)
-   _ -> scope
-
-
-desugarTmpPrecedes :: Span -> Exp -> Exp -> TmpScope -> Maybe Exp
-desugarTmpPrecedes span e1 e2 scope = case scope of
-  PosTmpScopeGlobally s -> Just $ PosLtlWUntil span (PosENeg noSpan e2) e1
-  PosTmpScopeBefore s r -> Just $ PosEImplies span (PosLtlF noSpan r) (PosLtlUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r))
-  PosTmpScopeAfter s q -> Just $ PosEOr span (PosLtlG noSpan $ PosENeg noSpan q) (PosLtlF noSpan (PosEAnd noSpan q (PosLtlWUntil noSpan (PosENeg noSpan e2) (e1))))
-  PosTmpScopeBetweenAnd s q r -> Just $ PosLtlG span (PosEImplies noSpan (PosEAnd noSpan q (PosEAnd noSpan (PosENeg noSpan r) (PosLtlF noSpan r) )) (PosLtlUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r)) )
-  PosTmpScopeAfterUntil s q r -> Just $ PosLtlG span (PosEImplies noSpan (PosEAnd noSpan q (PosENeg noSpan r)) (PosLtlWUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r)) )
-  _ -> Nothing
+  ConstrExp e -> desugarConstrExp $ PosConstrExp noSpan e
+  PosConstrExp s e -> Just e
+  ImmutableConstr e -> desugarConstrExp $ PosImmutableConstr noSpan e
+  PosImmutableConstr s e -> Nothing
 
 desugarSoftConstraint :: SoftConstraint -> PExp
 desugarSoftConstraint x = case x of
@@ -236,7 +209,7 @@ desugarGoal x = case x of
     (if length exps > 1 then foldl1 (PosEAnd noSpan) else head) exps
 
 sugarConstraint :: PExp -> Constraint
-sugarConstraint pexp = Constraint $ map ((.) NonPatternsExp sugarExp) [pexp]
+sugarConstraint pexp = Constraint $ map ((.) ConstrExp sugarExp) [pexp]
 
 sugarSoftConstraint :: PExp -> SoftConstraint
 sugarSoftConstraint pexp = SoftConstraint $ map sugarExp [pexp]
@@ -304,7 +277,7 @@ mkArrowConstraint (Clafer abstract gcard id super card init elements) =
     mkArrowConstraint $ PosClafer noSpan abstract gcard id super card init elements
 mkArrowConstraint (PosClafer s _ _ ident super _ _ _) = 
   if isSuperSomeArrow super then  [Subconstraint $
-       Constraint [NonPatternsExp $ PosDeclAllDisj noSpan
+       Constraint [ConstrExp $ PosDeclAllDisj noSpan
        (Decl [LocIdIdent $ mkIdent "x", LocIdIdent $ mkIdent "y"]
              (PosClaferId noSpan  $ Path [ModIdIdent ident]))
        (PosENeq noSpan (PosESetExp noSpan $ Join (PosClaferId noSpan $ Path [ModIdIdent $ mkIdent "x"])
@@ -384,6 +357,79 @@ sugarCard x = case x of
 
 sugarExInteger n = if n == -1 then ExIntegerAst else (ExIntegerNum $ PosInteger ((0, 0), show n))
 
+desugarTmpScope scope = case scope of
+   TmpScopeGlobally -> PosTmpScopeGlobally noSpan
+   TmpScopeBefore e -> PosTmpScopeBefore noSpan $ adjustExp e
+   TmpScopeAfter e -> PosTmpScopeAfter noSpan $ adjustExp e
+   TmpScopeBetweenAnd e1 e2 -> PosTmpScopeBetweenAnd noSpan (adjustExp e1) (adjustExp e2)
+   TmpScopeAfterUntil e1 e2 -> PosTmpScopeAfterUntil noSpan (adjustExp e1) (adjustExp e2)
+   _ -> scope
+
+
+desugarTmpPrecedesPat :: Span -> Exp -> Exp -> TmpScope -> Exp
+desugarTmpPrecedesPat span e1 e2 scope = case scope of
+  -- p=e2; s=e1
+  -- !P W S
+  PosTmpScopeGlobally s -> PosLtlWUntil span (PosENeg noSpan e2) e1
+  PosTmpScopeBefore s r -> PosEImplies span (PosLtlF noSpan r) (PosLtlUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r))
+  PosTmpScopeAfter s q -> PosEOr span (PosLtlG noSpan $ PosENeg noSpan q) (PosLtlF noSpan (PosEAnd noSpan q (PosLtlWUntil noSpan (PosENeg noSpan e2) (e1))))
+  PosTmpScopeBetweenAnd s q r -> PosLtlG span (PosEImplies noSpan (PosEAnd noSpan q (PosEAnd noSpan (PosENeg noSpan r) (PosLtlF noSpan r) )) (PosLtlUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r)) )
+  PosTmpScopeAfterUntil s q r -> PosLtlG span (PosEImplies noSpan (PosEAnd noSpan q (PosENeg noSpan r)) (PosLtlWUntil noSpan (PosENeg noSpan e2) (PosEOr noSpan e1 r)) )
+
+desugarTmpRespondsToPat :: Span -> Exp -> Exp -> TmpScope -> Exp
+desugarTmpRespondsToPat span e1 e2 scope = case scope of
+  -- p=e2; s=e1
+  -- [](P -> <>S)
+  PosTmpScopeGlobally s -> PosLtlG span (EImplies e2 (LtlF e1)) 
+  -- <>R -> (P -> (!R U (S & !R))) U R
+  PosTmpScopeBefore s r -> PosLtlUntil span ( EImplies (LtlF r) (EImplies (e2) (LtlUntil (ENeg r) (EAnd e1 (ENeg r) ) ) ) ) (r)
+  -- [](Q -> [](P -> <>S))
+  PosTmpScopeAfter s q -> PosLtlG span $ EImplies q ( LtlG (EImplies e2 (LtlF e1)) )
+  -- []((Q & !R & <>R) -> (P -> (!R U (S & !R))) U R)
+  PosTmpScopeBetweenAnd s q r -> PosLtlG span $ LtlUntil (EImplies (EAnd (EAnd q (ENeg r)) (LtlF r)) ( EImplies (e2) (LtlUntil (ENeg r) (EAnd (e1) (ENeg r) )) ) ) (r)
+  -- [](Q & !R -> ((P -> (!R U (S & !R))) W R))
+  PosTmpScopeAfterUntil s q r -> PosLtlG span $ EImplies (EAnd q (ENeg r)) (LtlWUntil (EImplies (e2) (LtlUntil (ENeg r) (EAnd e1 (ENeg r)) )) (r))
+
+
+desugarTmpUniversalityPat :: Span -> Exp -> TmpScope -> Exp
+desugarTmpUniversalityPat span e scope = case scope of
+  -- [](P)
+  PosTmpScopeGlobally s -> PosLtlG span e
+  -- <>R -> (P U R)
+  PosTmpScopeBefore s r -> PosEImplies span (PosLtlF noSpan r) (PosLtlUntil noSpan e r)
+  -- [](Q -> [](P))
+  PosTmpScopeAfter s q -> PosLtlG span $ EImplies (q) (LtlG e)
+  -- []((Q & !R & <>R) -> (P U R))
+  PosTmpScopeBetweenAnd s q r -> PosLtlG span $ EImplies (EAnd (EAnd q (ENeg r)) (LtlF r) ) (LtlUntil e r)
+  -- [](Q & !R -> (P W R))
+  PosTmpScopeAfterUntil s q r -> PosLtlG span $ EImplies (EAnd q (ENeg r)) (LtlWUntil e r)
+
+desugarTmpAbsencePat :: Span -> Exp -> TmpScope -> Exp
+desugarTmpAbsencePat span e scope = case scope of
+  -- [](!P)
+  PosTmpScopeGlobally s -> PosLtlG span (ENeg e)
+  -- <>R -> (!P U R)
+  PosTmpScopeBefore s r -> PosEImplies span (LtlF r) (LtlUntil (ENeg e) (r) )
+  -- [](Q -> [](!P))
+  PosTmpScopeAfter s q ->  PosLtlG span $ EImplies (q) (LtlG (ENeg e))
+  -- []((Q & !R & <>R) -> (!P U R)) 
+  PosTmpScopeBetweenAnd s q r -> PosLtlG span $ EImplies (EAnd (EAnd (q) (ENeg r) ) (LtlF r)) (LtlUntil (ENeg e) (r))
+  -- [](Q & !R -> (!P W R))
+  PosTmpScopeAfterUntil s q r -> PosLtlG span $ EImplies ( EAnd (q) (ENeg r) ) (LtlWUntil (ENeg e) (r) )
+
+desugarTmpExistencePat :: Span -> Exp -> TmpScope -> Exp
+desugarTmpExistencePat span e scope = case scope of
+  -- <>(P)
+  PosTmpScopeGlobally s -> PosLtlF span e
+  -- !R W (P & !R)
+  PosTmpScopeBefore s r -> PosLtlWUntil span (ENeg r) (EAnd e (ENeg r))
+  -- [](!Q) | <>(Q & <>P))
+  PosTmpScopeAfter s q -> PosEOr span (LtlG (ENeg q)) (LtlF (EAnd q (LtlF e))) 
+  -- [](Q & !R -> (!R W (P & !R)))
+  PosTmpScopeBetweenAnd s q r -> PosLtlG span (EImplies (EAnd q (ENeg r)) (LtlWUntil (ENeg r) (EAnd e (ENeg r))) )  
+  -- [](Q & !R -> (!R U (P & !R)))
+  PosTmpScopeAfterUntil s q r -> PosLtlG span (EImplies (EAnd q (ENeg r)) (LtlUntil (ENeg r) (EAnd e (ENeg r))) )  
+
 desugarExp :: Exp -> PExp
 desugarExp x = pExpDefPid (range x') $ desugarExp' x'
   where 
@@ -391,6 +437,17 @@ desugarExp x = pExpDefPid (range x') $ desugarExp' x'
 
 desugarExp' :: Exp -> IExp
 desugarExp' x = case x of
+  TmpPrecedes e1 e2 scope -> desugarExp' $ PosTmpPrecedes noSpan e1 e2 scope 
+  TmpRespondsTo e1 e2 scope -> desugarExp' $ PosTmpRespondsTo noSpan e1 e2 scope 
+  TmpAbsence e scope -> desugarExp' $ PosTmpAbsence noSpan e scope 
+  TmpUniversality e scope -> desugarExp' $ PosTmpUniversality noSpan e scope 
+  TmpExistence e scope -> desugarExp' $ PosTmpExistence noSpan e scope 
+  TmpBoundedExistence e q scope -> desugarExp' $ PosTmpBoundedExistence noSpan e q scope 
+  PosTmpPrecedes s e1 e2 scope -> desugarExp' $ desugarTmpPrecedesPat s e1 e2 $ desugarTmpScope scope
+  PosTmpRespondsTo s e1 e2 scope -> desugarExp' $ desugarTmpRespondsToPat s e1 e2 $ desugarTmpScope scope
+  PosTmpAbsence s e scope -> desugarExp' $ desugarTmpAbsencePat s e $ desugarTmpScope scope
+  PosTmpUniversality s e scope -> desugarExp' $ desugarTmpUniversalityPat s e $ desugarTmpScope scope
+  PosTmpExistence s e scope -> desugarExp' $ desugarTmpExistencePat s e $ desugarTmpScope scope
   PosDeclAllDisj s decl exp ->
       IDeclPExp IAll [desugarDecl True decl] (dpe exp)
   PosDeclAll s decl exp -> IDeclPExp IAll [desugarDecl False decl] (dpe exp)

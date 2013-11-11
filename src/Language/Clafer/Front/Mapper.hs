@@ -141,19 +141,9 @@ instance Mappable Constraint where
 
 
 instance Mappable ConstrExp where
-  mapNode (TmpPrecedes e e' ts) = doMap3 PosTmpPrecedes e e' ts
-  mapNode (TmpRespondsTo e e' ts) = doMap3 PosTmpRespondsTo e e' ts
-  mapNode (TmpAbsence e ts) = doMap2 PosTmpAbsence e ts
-  mapNode (TmpExistence e ts) = doMap2 PosTmpExistence e ts
-  mapNode (TmpBoundedExistence e numb ts) = doMap3 PosTmpBoundedExistence e numb ts
-  mapNode (NonPatternsExp e) = doMap PosNonPatternsExp e
+  mapNode (ConstrExp e) = doMap PosConstrExp e 
   mapNode (ImmutableConstr im) = doMap PosImmutableConstr im
-  range (PosTmpPrecedes s _ _ _) = s
-  range (PosTmpRespondsTo s _ _ _) = s
-  range (PosTmpAbsence s _ _) = s
-  range (PosTmpExistence s _ _) = s
-  range (PosTmpBoundedExistence s _ _ _) = s
-  range (PosNonPatternsExp s _) = s
+  range (PosConstrExp s _) = s
   range (PosImmutableConstr s _) = s
 
 
@@ -259,6 +249,11 @@ instance Mappable Exp where
   mapNode (EDouble posdouble)            = doMap PosEDouble posdouble
   mapNode (EStr posstring)               = doMap PosEStr posstring
   mapNode (ESetExp setexp)               = doMap PosESetExp setexp
+  mapNode (TmpPrecedes e e' ts)          = doMap3 PosTmpPrecedes e e' ts
+  mapNode (TmpRespondsTo e e' ts)        = doMap3 PosTmpRespondsTo e e' ts
+  mapNode (TmpAbsence e ts)              = doMap2 PosTmpAbsence e ts
+  mapNode (TmpExistence e ts)            = doMap2 PosTmpExistence e ts
+  mapNode (TmpBoundedExistence e numb ts) = doMap3 PosTmpBoundedExistence e numb ts
   range (PosDeclAllDisj s _ _)    = s
   range (PosDeclAll s _ _)        = s
   range (PosDeclQuantDisj s _ _ _) = s
@@ -298,6 +293,11 @@ instance Mappable Exp where
   range (PosLtlF s _)             = s
   range (PosLtlG s _)             = s
   range (PosLtlX s _)             = s
+  range (PosTmpPrecedes s _ _ _)  = s
+  range (PosTmpRespondsTo s _ _ _) = s
+  range (PosTmpAbsence s _ _)     = s
+  range (PosTmpExistence s _ _)   = s
+  range (PosTmpBoundedExistence s _ _ _) = s
   range x = error $ "No position for Exp " ++ show x
   
   
@@ -416,9 +416,9 @@ instance Mappable PosDouble where
     c' = toInteger c
     l' = toInteger l
   
-instance Mappable PosImmutable where
+instance Mappable Immutable where
   mapNode = id
-  range (PosImmutable ((c, l), lex)) = tokenSpan c l lex
+  range (Immutable ((c, l), lex)) = tokenSpan c l lex
   
 instance Mappable PosInteger where
   mapNode = id  

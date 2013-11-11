@@ -55,7 +55,7 @@ data Tok =
  | TV !String         -- identifiers
  | TD !String         -- double precision float literals
  | TC !String         -- character literals
- | T_PosImmutable !String
+ | T_Immutable !String
  | T_PosInteger !String
  | T_PosDouble !String
  | T_PosString !String
@@ -85,7 +85,7 @@ prToken t = case t of
   PT _ (TV s)   -> s
   PT _ (TD s)   -> s
   PT _ (TC s)   -> s
-  PT _ (T_PosImmutable s) -> s
+  PT _ (T_Immutable s) -> s
   PT _ (T_PosInteger s) -> s
   PT _ (T_PosDouble s) -> s
   PT _ (T_PosString s) -> s
@@ -102,7 +102,7 @@ eitherResIdent tv s = treeFind resWords
                               | s > a  = treeFind right
                               | s == a = t
 
-resWords = b "\\" 41 (b ":>" 21 (b "," 11 (b "(" 6 (b "#" 3 (b "!=" 2 (b "!" 1 N N) N) (b "&&" 5 (b "&" 4 N N) N)) (b "+" 9 (b "*" 8 (b ")" 7 N N) N) (b "++" 10 N N))) (b "." 16 (b "->" 14 (b "--" 13 (b "-" 12 N N) N) (b "->>" 15 N N)) (b ":" 19 (b "/" 18 (b ".." 17 N N) N) (b ":=" 20 N N)))) (b ">=" 31 (b "<=" 26 (b "<:" 24 (b "<" 23 (b ";" 22 N N) N) (b "<<" 25 N N)) (b "=>" 29 (b "=" 28 (b "<=>" 27 N N) N) (b ">" 30 N N))) (b "R" 36 (b "F" 34 (b "?" 33 (b ">>" 32 N N) N) (b "G" 35 N N)) (b "X" 39 (b "W" 38 (b "U" 37 N N) N) (b "[" 40 N N))))) (b "mux" 62 (b "enum" 52 (b "and" 47 (b "abstract" 44 (b "`" 43 (b "]" 42 N N) N) (b "all" 46 (b "after" 45 N N) N)) (b "disj" 50 (b "between" 49 (b "before" 48 N N) N) (b "else" 51 N N))) (b "in" 57 (b "globally" 55 (b "false" 54 (b "eventually" 53 N N) N) (b "if" 56 N N)) (b "max" 60 (b "lone" 59 (b "is" 58 N N) N) (b "min" 61 N N)))) (b "sum" 72 (b "or" 67 (b "one" 65 (b "not" 64 (b "no" 63 N N) N) (b "opt" 66 N N)) (b "respondsTo" 70 (b "responds" 69 (b "precedes" 68 N N) N) (b "some" 71 N N))) (b "xor" 77 (b "to" 75 (b "times" 74 (b "then" 73 N N) N) (b "until" 76 N N)) (b "||" 80 (b "|" 79 (b "{" 78 N N) N) (b "}" 81 N N)))))
+resWords = b "]" 42 (b ":>" 21 (b "," 11 (b "(" 6 (b "#" 3 (b "!=" 2 (b "!" 1 N N) N) (b "&&" 5 (b "&" 4 N N) N)) (b "+" 9 (b "*" 8 (b ")" 7 N N) N) (b "++" 10 N N))) (b "." 16 (b "->" 14 (b "--" 13 (b "-" 12 N N) N) (b "->>" 15 N N)) (b ":" 19 (b "/" 18 (b ".." 17 N N) N) (b ":=" 20 N N)))) (b ">>" 32 (b "<=>" 27 (b "<:" 24 (b "<" 23 (b ";" 22 N N) N) (b "<=" 26 (b "<<" 25 N N) N)) (b ">" 30 (b "=>" 29 (b "=" 28 N N) N) (b ">=" 31 N N))) (b "U" 37 (b "G" 35 (b "F" 34 (b "?" 33 N N) N) (b "R" 36 N N)) (b "[" 40 (b "X" 39 (b "W" 38 N N) N) (b "\\" 41 N N))))) (b "mux" 63 (b "eventually" 53 (b "before" 48 (b "after" 45 (b "abstract" 44 (b "`" 43 N N) N) (b "and" 47 (b "all" 46 N N) N)) (b "else" 51 (b "disj" 50 (b "between" 49 N N) N) (b "enum" 52 N N))) (b "is" 58 (b "if" 56 (b "globally" 55 (b "false" 54 N N) N) (b "in" 57 N N)) (b "max" 61 (b "lone" 60 (b "let" 59 N N) N) (b "min" 62 N N)))) (b "then" 74 (b "precedes" 69 (b "one" 66 (b "not" 65 (b "no" 64 N N) N) (b "or" 68 (b "opt" 67 N N) N)) (b "some" 72 (b "respondsTo" 71 (b "responds" 70 N N) N) (b "sum" 73 N N))) (b "xor" 79 (b "true" 77 (b "to" 76 (b "times" 75 N N) N) (b "until" 78 N N)) (b "||" 82 (b "|" 81 (b "{" 80 N N) N) (b "}" 83 N N)))))
    where b s n = let bs = id s
                   in B bs (TS bs n)
 
@@ -185,7 +185,7 @@ utf8Encode = map fromIntegral . go . ord
                         ]
 
 alex_action_3 =  tok (\p s -> PT p (eitherResIdent (TV . share) s)) 
-alex_action_4 =  tok (\p s -> PT p (eitherResIdent (T_PosImmutable . share) s)) 
+alex_action_4 =  tok (\p s -> PT p (eitherResIdent (T_Immutable . share) s)) 
 alex_action_5 =  tok (\p s -> PT p (eitherResIdent (T_PosInteger . share) s)) 
 alex_action_6 =  tok (\p s -> PT p (eitherResIdent (T_PosDouble . share) s)) 
 alex_action_7 =  tok (\p s -> PT p (eitherResIdent (T_PosString . share) s)) 
@@ -195,6 +195,55 @@ alex_action_10 =  tok (\p s -> PT p (TI $ share s))
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 {-# LINE 1 "<command-line>" #-}
+
+
+
+
+
+
+
+# 1 "/usr/include/stdc-predef.h" 1 3 4
+
+# 17 "/usr/include/stdc-predef.h" 3 4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 1 3 4
+
+# 18 "/usr/include/x86_64-linux-gnu/bits/predefs.h" 3 4
+
+
+
+
+
+
+
+
+
+
+
+
+# 31 "/usr/include/stdc-predef.h" 2 3 4
+
+
+
+
+
+
+
+
+# 7 "<command-line>" 2
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE
@@ -205,9 +254,20 @@ alex_action_10 =  tok (\p s -> PT p (TI $ share s))
 -- -----------------------------------------------------------------------------
 -- INTERNALS and main scanner engine
 
-{-# LINE 35 "templates/GenericTemplate.hs" #-}
+{-# LINE 21 "templates/GenericTemplate.hs" #-}
 
-{-# LINE 45 "templates/GenericTemplate.hs" #-}
+
+
+
+
+#if __GLASGOW_HASKELL__ > 706
+#define GTE(n,m) (tagToEnum# (n >=# m))
+#define EQ(n,m) (tagToEnum# (n ==# m))
+#else
+#define GTE(n,m) (n >=# m)
+#define EQ(n,m) (n ==# m)
+#endif
+{-# LINE 50 "templates/GenericTemplate.hs" #-}
 
 
 data AlexAddr = AlexA# Addr#
@@ -326,7 +386,7 @@ alex_scan_tkn user orig_input len input s last_acc =
                 offset = (base +# ord_c)
                 check  = alexIndexInt16OffAddr alex_check offset
 		
-                new_s = if (offset >=# 0#) && (check ==# ord_c)
+                new_s = if GTE(offset,0#) && EQ(check,ord_c)
 			  then alexIndexInt16OffAddr alex_table offset
 			  else alexIndexInt16OffAddr alex_deflt s
 	in
@@ -342,7 +402,7 @@ alex_scan_tkn user orig_input len input s last_acc =
 	check_accs (AlexAccNone) = last_acc
 	check_accs (AlexAcc a  ) = AlexLastAcc a input (I# (len))
 	check_accs (AlexAccSkip) = AlexLastSkip  input (I# (len))
-{-# LINE 191 "templates/GenericTemplate.hs" #-}
+{-# LINE 196 "templates/GenericTemplate.hs" #-}
 
 data AlexLastAcc a
   = AlexNone
@@ -358,7 +418,7 @@ data AlexAcc a user
   = AlexAccNone
   | AlexAcc a
   | AlexAccSkip
-{-# LINE 235 "templates/GenericTemplate.hs" #-}
+{-# LINE 240 "templates/GenericTemplate.hs" #-}
 
 -- used by wrappers
 iUnbox (I# (i)) = i

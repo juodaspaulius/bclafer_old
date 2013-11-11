@@ -165,12 +165,7 @@ traverseExInteger x =
 traverseName x@(PosPath _ m) = AstName x : concatMap traverseModId m
 
 traverseConstrExp x = AstConstrExp x : case x of  
-    PosTmpPrecedes _ e1 e2 _ -> traverseExp e1 ++ traverseExp e2
-    PosTmpRespondsTo _ e1 e2 _ -> traverseExp e1 ++ traverseExp e2
-    PosTmpAbsence _ e _ -> traverseExp e 
-    PosTmpExistence _ e _ -> traverseExp e
-    PosTmpBoundedExistence _ e _ _ -> traverseExp e
-    PosNonPatternsExp _ e -> traverseExp e
+    PosConstrExp _ e -> traverseExp e
     PosImmutableConstr _ _ -> []
 
 traverseExp x =
@@ -208,6 +203,11 @@ traverseExp x =
     PosEDouble _ _ -> []
     PosEStr _ _ -> []
     PosESetExp _ s -> traverseSetExp s
+    PosTmpPrecedes _ e1 e2 _ -> traverseExp e1 ++ traverseExp e2
+    PosTmpRespondsTo _ e1 e2 _ -> traverseExp e1 ++ traverseExp e2
+    PosTmpAbsence _ e _ -> traverseExp e 
+    PosTmpExistence _ e _ -> traverseExp e
+    PosTmpBoundedExistence _ e _ _ -> traverseExp e
 
 traverseSetExp x =
   AstSetExp x :

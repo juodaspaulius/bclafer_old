@@ -31,32 +31,20 @@ TmpScopeAfter.		TmpScope ::= "after" Exp ;
 TmpScopeBetweenAnd.	TmpScope ::= "between" Exp "and" Exp ;
 TmpScopeAfterUntil.	TmpScope ::= "after" Exp "until" Exp ;
 
--- Scopes of Temporal Patterns - END
-
-
--- List of Temporal Patterns - BEGIN
-
-TmpPrecedes.	ConstrExp ::= Exp "precedes" Exp TmpScope;
-TmpRespondsTo.	ConstrExp ::= Exp "respondsTo" Exp TmpScope;
-TmpRespondsTo.	ConstrExp ::= Exp "responds" "to" Exp TmpScope;
-
-TmpAbsence.	ConstrExp1 ::= Exp "is" "false" TmpScope ;
-TmpUniversality.	ConstrExp1 ::= Exp TmpScope ;
-TmpBoundedExistence.	ConstrExp1 ::= Exp PosInteger "times" TmpScope ;
-TmpExistence.	ConstrExp1	::= "eventually" Exp TmpScope ;
-
--- logical && has a higher precedence than logical ||
-ConstrExpOr.	ConstrExp2	::= ConstrExp2 "||" ConstrExp3 ;
-ConstrExpAnd.	ConstrExp3	::= ConstrExp3 "&&" ConstrExp4 ;
-
--- Non pattern constraint
-NonPatternsExp.		ConstrExp4 ::= Exp;
-
-coercions ConstrExp 4 ;
-
-
 -- Immutable constraint
-ImmutableConstr.	ConstrExp ::= PosImmutable;
+ImmutableConstr.	ConstrExp ::= Immutable;
+ConstrExp.	        ConstrExp ::= Exp;
+
+DeclLetBindingValue.	DeclLetBindingValue	::= PosIdent "=" Exp ;
+DeclLetBindValue.	Exp16	::= "let" [DeclLetBindingValue] "|" Exp ;
+separator nonempty DeclLetBindingValue "," ;
+
+DeclBindingSet.		DeclBindingSet	::= PosIdent ":" SetExp ;
+DeclBindSet1.		SetExp		::= "{" [DeclBindingSet] "|" Exp "}" ;
+separator nonempty DeclBindingSet "," ;
+
+DeclBindSet2.		SetExp		::= "{" [Decl] "|" Exp "}" ;
+separator nonempty Decl "," ;
 
 
 AbstractEmpty.  Abstract ::= ;
@@ -113,41 +101,51 @@ DeclAllDisj.    Exp   ::= "all" "disj" Decl "|" Exp ;
 DeclAll.        Exp   ::= "all"        Decl "|" Exp ;
 DeclQuantDisj.  Exp   ::= Quant "disj" Decl "|" Exp ;
 DeclQuant.      Exp   ::= Quant        Decl "|" Exp ;
-EGMax.          Exp1  ::= "max" Exp2 ;
-EGMin.          Exp1  ::= "min" Exp2 ;
-EIff.           Exp1  ::= Exp1 "<=>" Exp2 ;
-EImplies.       Exp2  ::= Exp2 "=>"  Exp3 ;
-EOr.            Exp3  ::= Exp3 "||"  Exp4 ;
-EXor.           Exp4  ::= Exp4 "xor" Exp5 ;
-EAnd.           Exp5  ::= Exp5 "&&"  Exp6 ;
-LtlRel.         Exp6  ::= Exp6 "R"  Exp7 ;
-LtlUntil.       Exp6  ::= Exp6 "U"  Exp7 ;
-LtlWUntil.      Exp6  ::= Exp6 "W"  Exp7 ;
-LtlF.           Exp7  ::= "F"  Exp8 ;
-LtlG.           Exp7  ::= "G"  Exp8 ;
-LtlX.           Exp8  ::= "X"  Exp9 ;
-ENeg.           Exp9  ::= "!" Exp10 ;
-ELt.            Exp10  ::= Exp10 "<"  Exp11 ;
-EGt.            Exp10  ::= Exp10 ">"  Exp11 ;
-EEq.            Exp10  ::= Exp10 "="  Exp11 ;
-ELte.           Exp10  ::= Exp10 "<=" Exp11 ;
-EGte.           Exp10  ::= Exp10 ">=" Exp11 ;
-ENeq.           Exp10  ::= Exp10 "!=" Exp11 ;
-EIn.            Exp10  ::= Exp10 "in" Exp11 ;
-ENin.           Exp10  ::= Exp10 "not" "in" Exp11 ;
-QuantExp.       Exp11  ::= Quant Exp15 ;
-EAdd.           Exp12  ::= Exp12  "+" Exp13 ;
-ESub.           Exp12  ::= Exp12  "-" Exp13 ;
-EMul.           Exp13 ::= Exp13 "*" Exp14 ;
-EDiv.           Exp13 ::= Exp13 "/" Exp14 ;
-ESumSetExp.     Exp14 ::= "sum" Exp15;
-ECSetExp.       Exp14 ::= "#" Exp15 ;
-EMinExp.        Exp14 ::= "-" Exp15 ;
-EImpliesElse.   Exp15 ::= "if" Exp15 "then" Exp15 "else" Exp16 ;
-EInt.           Exp16 ::= PosInteger ;
-EDouble.        Exp16 ::= PosDouble ;
-EStr.           Exp16 ::= PosString ;
-ESetExp.        Exp16 ::= SetExp ;
+
+TmpPrecedes.	Exp1 ::= Exp4 "precedes" Exp TmpScope;
+TmpRespondsTo.	Exp1 ::= Exp4 "respondsTo" Exp TmpScope;
+TmpRespondsTo.	Exp1 ::= Exp4 "responds" "to" Exp TmpScope;
+TmpAbsence.	    Exp1 ::= Exp4 "is" "false" TmpScope ;
+TmpUniversality.	Exp1 ::= Exp4 "is" "true" TmpScope ;
+TmpBoundedExistence.	Exp1 ::= Exp4 "is" "true" PosInteger "times" TmpScope ;
+TmpExistence.	Exp1 ::= "eventually" Exp4 TmpScope ;
+
+
+EGMax.          Exp2  ::= "max" Exp3 ;
+EGMin.          Exp3  ::= "min" Exp4 ;
+EIff.           Exp4  ::= Exp4 "<=>" Exp5 ;
+EImplies.       Exp5  ::= Exp5 "=>"  Exp6 ;
+EOr.            Exp6  ::= Exp6 "||"  Exp7 ;
+EXor.           Exp7  ::= Exp7 "xor" Exp8 ;
+EAnd.           Exp8  ::= Exp8 "&&"  Exp9 ;
+LtlRel.         Exp9  ::= Exp9 "R"  Exp10 ;
+LtlUntil.       Exp9  ::= Exp9 "U"  Exp10 ;
+LtlWUntil.      Exp9  ::= Exp9 "W"  Exp10 ;
+LtlF.           Exp10  ::= "F"  Exp11 ;
+LtlG.           Exp10  ::= "G"  Exp11 ;
+LtlX.           Exp11  ::= "X"  Exp12 ;
+ENeg.           Exp12  ::= "!" Exp13 ;
+ELt.            Exp13  ::= Exp13 "<"  Exp14 ;
+EGt.            Exp13  ::= Exp13 ">"  Exp14 ;
+EEq.            Exp13  ::= Exp13 "="  Exp14 ;
+ELte.           Exp13  ::= Exp13 "<=" Exp14 ;
+EGte.           Exp13  ::= Exp13 ">=" Exp14 ;
+ENeq.           Exp13  ::= Exp13 "!=" Exp14 ;
+EIn.            Exp13  ::= Exp13 "in" Exp14 ;
+ENin.           Exp13  ::= Exp13 "not" "in" Exp14 ;
+QuantExp.       Exp14  ::= Quant Exp18 ;
+EAdd.           Exp15  ::= Exp15  "+" Exp16 ;
+ESub.           Exp15  ::= Exp15  "-" Exp16 ;
+EMul.           Exp16 ::= Exp16 "*" Exp17 ;
+EDiv.           Exp16 ::= Exp16 "/" Exp17 ;
+ESumSetExp.     Exp17 ::= "sum" Exp18;
+ECSetExp.       Exp17 ::= "#" Exp18 ;
+EMinExp.        Exp17 ::= "-" Exp18 ;
+EImpliesElse.   Exp18 ::= "if" Exp18 "then" Exp18 "else" Exp19 ;
+EInt.           Exp19 ::= PosInteger ;
+EDouble.        Exp19 ::= PosDouble ;
+EStr.           Exp19 ::= PosString ;
+ESetExp.        Exp19 ::= SetExp ;
 
 Union.          SetExp  ::= SetExp  "++" SetExp1 ;
 UnionCom.       SetExp  ::= SetExp  ","  SetExp1 ;
@@ -180,7 +178,7 @@ separator           ConstrExp         ""  ;
 separator  nonempty LocId       ";" ;
 separator  nonempty ModId       "\\" ;
 
-coercions Exp 16 ;
+coercions Exp 19 ;
 coercions SetExp 6 ;
 
 --QuantNo.        Quant ::=  No ;
@@ -191,7 +189,7 @@ coercions SetExp 6 ;
 -- This is the same as the following rule?
 --position token Immutable ('i' 'm' 'm' 'u' 't' 'a' 'b' 'l' 'e') ;
 
-position token PosImmutable {"immutable"} ;
+position token Immutable {"immutable"} ;
 
 position token PosInteger (digit+) ;
 position token PosDouble (digit+ '.' digit+ ('e' '-'? digit+)?) ;
