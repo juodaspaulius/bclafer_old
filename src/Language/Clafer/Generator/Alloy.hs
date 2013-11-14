@@ -33,6 +33,7 @@ import Control.Monad.State
 import Language.Clafer.Common
 import Language.Clafer.ClaferArgs
 import Language.Clafer.Front.Absclafer
+import Language.Clafer.Generator.ConstraintPrinter
 import Language.Clafer.Intermediate.Intclafer 
 import Language.Clafer.Intermediate.ScopeAnalysis
 
@@ -99,7 +100,7 @@ timeSig = "Time"
 -- 07th Mayo 2012 Rafael Olaechea
 --      Added Logic to print a goal block in case there is at least one goal.
 genModule :: ClaferArgs -> (IModule, GEnv) -> (Result, [(Span, IrTrace)])
-genModule    claferargs    (imodule, _)     = (flatten output, filter ((/= NoTrace) . snd) $ mapLineCol output)
+genModule    claferargs    (imodule, _)     = trace (printModuleConstraints imodule) $ (flatten output, filter ((/= NoTrace) . snd) $ mapLineCol output)
   where
   output = header claferargs imodule +++ (cconcat $ map (genDeclaration claferargs) (mDecls imodule)) +++
        if length goals_list > 0 then

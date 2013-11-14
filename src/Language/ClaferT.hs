@@ -33,6 +33,7 @@ import Control.Monad.Identity
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Debug.Trace
 
 import Language.Clafer.Common
 import Language.Clafer.Front.Absclafer
@@ -217,9 +218,9 @@ instance ClaferErrPos PartialErrPos where
 class Throwable t where
   toErr :: t -> Monad m => ClaferT m ClaferErr
   
-instance ClaferErrPos p => Throwable (CErr p) where
+instance (ClaferErrPos p, Show p) => Throwable (CErr p) where
   toErr (ClaferErr msg) = return $ ClaferErr msg
-  toErr err =
+  toErr err = -- trace ("Error occured: " ++ (show err)) $ 
     do
       pos' <- toErrPos $ pos err
       return $ err{pos = pos'}

@@ -1,5 +1,5 @@
---- Parclafer-old.y	2013-11-10 20:26:58.866944000 -0600
-+++ Parclafer.y	2013-11-11 03:28:47.559160000 -0600
+--- Parclafer-old.y	2013-11-13 10:46:34.663838000 -0600
++++ Parclafer.y	2013-11-13 10:46:48.016681000 -0600
 @@ -122,7 +122,7 @@
  
  
@@ -9,7 +9,7 @@
    | Element { ElementDecl $1 }
  
  
-@@ -131,15 +131,15 @@
+@@ -131,24 +131,24 @@
  
  
  Constraint :: { Constraint }
@@ -28,6 +28,20 @@
  
  
  TmpScope :: { TmpScope }
+-TmpScope : 'globally' { TmpScopeGlobally } 
++TmpScope : 'globally' { PosTmpScopeGlobally (gp $1) } 
+   | {- empty -} { TmpScopeGlobally }
+-  | 'before' Exp { TmpScopeBefore $2 }
+-  | 'after' Exp { TmpScopeAfter $2 }
+-  | 'between' Exp 'and' Exp { TmpScopeBetweenAnd $2 $4 }
+-  | 'after' Exp 'until' Exp { TmpScopeAfterUntil $2 $4 }
++  | 'before' Exp { PosTmpScopeBefore (gp $1) $2 }
++  | 'after' Exp { PosTmpScopeAfter (gp $1) $2 }
++  | 'between' Exp 'and' Exp { PosTmpScopeBetweenAnd (gp $1) $2 $4 }
++  | 'after' Exp 'until' Exp { PosTmpScopeAfterUntil (gp $1) $2 $4 }
+ 
+ 
+ ConstrExp :: { ConstrExp }
 @@ -196,17 +196,17 @@
  
  Abstract :: { Abstract }

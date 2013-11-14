@@ -131,7 +131,7 @@ instance Mappable Clafer where
   
   
 instance Mappable Constraint where
---  mapNode (PosConstraint s e) = doMapWithSpan PosConstraint s e
+--  mapNode (PosConstraint s e) = doMapWi3thSpan PosConstraint s e
 --  The span in the PosConstraint contains the span of the "[" after lexing.
 --  However, we don't have the span of the "]". It doesn't make sense to include
 --  one but not the other. Hence, ignore the "[" position and start with the first
@@ -153,6 +153,11 @@ instance Mappable TmpScope where
   mapNode (TmpScopeAfter e) = PosTmpScopeAfter noSpan e
   mapNode (TmpScopeBetweenAnd e e') = PosTmpScopeBetweenAnd noSpan e e'
   mapNode (TmpScopeAfterUntil e e') = PosTmpScopeAfterUntil noSpan e e'
+  mapNode (PosTmpScopeGlobally s) = PosTmpScopeGlobally s
+  mapNode (PosTmpScopeBefore s e) = doMapWithSpan PosTmpScopeBefore s e
+  mapNode (PosTmpScopeAfter s e) = doMapWithSpan PosTmpScopeAfter s e
+  mapNode (PosTmpScopeBetweenAnd s e e') = doMap2WithSpan PosTmpScopeBetweenAnd s e e'
+  mapNode (PosTmpScopeAfterUntil s e e') = doMap2WithSpan PosTmpScopeAfterUntil s e e'
   range (PosTmpScopeGlobally s) = s
   range (PosTmpScopeBefore s _) = s
   range (PosTmpScopeAfter s _) = s
@@ -227,6 +232,9 @@ instance Mappable Exp where
   mapNode (LtlF exp)                     = doMap PosLtlF exp
   mapNode (LtlG exp)                     = doMap PosLtlG exp
   mapNode (LtlX exp)                     = doMap PosLtlX exp
+  mapNode (PosLtlF s exp)                = doMapWithSpan PosLtlF s exp
+  mapNode (PosLtlG s exp)                = doMapWithSpan PosLtlG s exp
+  mapNode (PosLtlX s exp)                = doMapWithSpan PosLtlX s exp
   mapNode (PosENeg s exp)                = doMapWithSpan PosENeg s exp
   mapNode (ELt exp0 exp1)                = doMap2 PosELt exp0 exp1
   mapNode (EGt exp0 exp1)                = doMap2 PosEGt exp0 exp1
@@ -251,9 +259,11 @@ instance Mappable Exp where
   mapNode (ESetExp setexp)               = doMap PosESetExp setexp
   mapNode (TmpPrecedes e e' ts)          = doMap3 PosTmpPrecedes e e' ts
   mapNode (TmpRespondsTo e e' ts)        = doMap3 PosTmpRespondsTo e e' ts
+  mapNode (TmpUniversality e ts)         = doMap2 PosTmpUniversality e ts
   mapNode (TmpAbsence e ts)              = doMap2 PosTmpAbsence e ts
   mapNode (TmpExistence e ts)            = doMap2 PosTmpExistence e ts
   mapNode (TmpBoundedExistence e numb ts) = doMap3 PosTmpBoundedExistence e numb ts
+  mapNode x = error $ "No mapping for Exp " ++ show x
   range (PosDeclAllDisj s _ _)    = s
   range (PosDeclAll s _ _)        = s
   range (PosDeclQuantDisj s _ _ _) = s
@@ -298,6 +308,7 @@ instance Mappable Exp where
   range (PosTmpAbsence s _ _)     = s
   range (PosTmpExistence s _ _)   = s
   range (PosTmpBoundedExistence s _ _ _) = s
+  range (PosTmpUniversality s _ _) = s
   range x = error $ "No position for Exp " ++ show x
   
   

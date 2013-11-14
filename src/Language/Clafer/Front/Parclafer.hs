@@ -769,9 +769,10 @@ happyReduction_13 happy_x_3
 
 happyReduce_14 = happySpecReduce_1  12# happyReduction_14
 happyReduction_14 happy_x_1
-	 =  happyIn16
-		 (TmpScopeGlobally
-	)
+	 =  case happyOutTok happy_x_1 of { happy_var_1 -> 
+	happyIn16
+		 (PosTmpScopeGlobally (gp happy_var_1)
+	)}
 
 happyReduce_15 = happySpecReduce_0  12# happyReduction_15
 happyReduction_15  =  happyIn16
@@ -781,18 +782,20 @@ happyReduction_15  =  happyIn16
 happyReduce_16 = happySpecReduce_2  12# happyReduction_16
 happyReduction_16 happy_x_2
 	happy_x_1
-	 =  case happyOut37 happy_x_2 of { happy_var_2 -> 
+	 =  case happyOutTok happy_x_1 of { happy_var_1 -> 
+	case happyOut37 happy_x_2 of { happy_var_2 -> 
 	happyIn16
-		 (TmpScopeBefore happy_var_2
-	)}
+		 (PosTmpScopeBefore (gp happy_var_1) happy_var_2
+	)}}
 
 happyReduce_17 = happySpecReduce_2  12# happyReduction_17
 happyReduction_17 happy_x_2
 	happy_x_1
-	 =  case happyOut37 happy_x_2 of { happy_var_2 -> 
+	 =  case happyOutTok happy_x_1 of { happy_var_1 -> 
+	case happyOut37 happy_x_2 of { happy_var_2 -> 
 	happyIn16
-		 (TmpScopeAfter happy_var_2
-	)}
+		 (PosTmpScopeAfter (gp happy_var_1) happy_var_2
+	)}}
 
 happyReduce_18 = happyReduce 4# 12# happyReduction_18
 happyReduction_18 (happy_x_4 `HappyStk`
@@ -800,11 +803,12 @@ happyReduction_18 (happy_x_4 `HappyStk`
 	happy_x_2 `HappyStk`
 	happy_x_1 `HappyStk`
 	happyRest)
-	 = case happyOut37 happy_x_2 of { happy_var_2 -> 
+	 = case happyOutTok happy_x_1 of { happy_var_1 -> 
+	case happyOut37 happy_x_2 of { happy_var_2 -> 
 	case happyOut37 happy_x_4 of { happy_var_4 -> 
 	happyIn16
-		 (TmpScopeBetweenAnd happy_var_2 happy_var_4
-	) `HappyStk` happyRest}}
+		 (PosTmpScopeBetweenAnd (gp happy_var_1) happy_var_2 happy_var_4
+	) `HappyStk` happyRest}}}
 
 happyReduce_19 = happyReduce 4# 12# happyReduction_19
 happyReduction_19 (happy_x_4 `HappyStk`
@@ -812,11 +816,12 @@ happyReduction_19 (happy_x_4 `HappyStk`
 	happy_x_2 `HappyStk`
 	happy_x_1 `HappyStk`
 	happyRest)
-	 = case happyOut37 happy_x_2 of { happy_var_2 -> 
+	 = case happyOutTok happy_x_1 of { happy_var_1 -> 
+	case happyOut37 happy_x_2 of { happy_var_2 -> 
 	case happyOut37 happy_x_4 of { happy_var_4 -> 
 	happyIn16
-		 (TmpScopeAfterUntil happy_var_2 happy_var_4
-	) `HappyStk` happyRest}}
+		 (PosTmpScopeAfterUntil (gp happy_var_1) happy_var_2 happy_var_4
+	) `HappyStk` happyRest}}}
 
 happyReduce_20 = happySpecReduce_1  13# happyReduction_20
 happyReduction_20 happy_x_1

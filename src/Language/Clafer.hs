@@ -96,9 +96,9 @@ t a b =
     do
       addModuleFragment a
       addModuleFragment b
-      parse
-      compile
-      generateFragments
+      trace "Parsing...\n" $ parse
+      trace "Compiling...\n" $ compile
+      trace "Generating output..." $ generateFragments
 
 {- Example of compiling a model consisting of one fragment:
  -  compileOneFragment :: ClaferArgs -> InputModel -> Either ClaferErr CompilerResult
@@ -181,7 +181,7 @@ liftParseErr e = head `liftM` liftParseErrs [e]
 
 -- Parses the model into AST. Adding more fragments beyond this point will have no effect.
 parse :: Monad m => ClaferT m ()
-parse =
+parse = trace "Parsing..." $
   do
     env <- getEnv
     let astsErr = map (parseFrag $ args env) $ modelFrags env
@@ -217,7 +217,7 @@ parse =
     
     let ast = mapModule ast'
     let env' = env{ cAst = Just ast, astModuleTrace = traceAstModule ast }
-    putEnv env'
+    trace "Finished parsing" $ putEnv env'
   where
   parseFrag args =
     pModule .
@@ -238,12 +238,13 @@ parse =
 
 -- Compiles the AST into IR.    
 compile :: Monad m => ClaferT m ()
-compile =
+compile = trace "Compiling..." $
   do
     env <- getEnv
     ir <- analyze (args env) $ desugar (ast env)
-    let (imodule, _, _) = ir
-    putEnv $ env{ cIr = Just ir, irModuleTrace = traceIrModule imodule }
+    let (imodule, _, _) = trace "Finished analyzing" $ ir
+    let env' = env{ cIr = Just ir, irModuleTrace = traceIrModule imodule }
+    trace "Finished compiling" $ putEnv env' 
 
 -- Splits the IR into their fragments, and generates the output for each fragment.
 -- Might not generate the entirea output (for example, Alloy scope and run commands) because
@@ -357,13 +358,13 @@ data CompilerResult = CompilerResult {
                             } deriving Show
 
 desugar :: Module -> IModule  
-desugar tree = desugarModule tree
+desugar tree = trace "Desugaring module..." $ desugarModule tree
 
 liftError :: (Monad m, Language.ClaferT.Throwable t) => Either t a -> ClaferT m a
 liftError = either throwErr return
 
 analyze :: Monad m => ClaferArgs -> IModule -> ClaferT m (IModule, GEnv, Bool)
-analyze args tree = do
+analyze args tree = trace "Analyzing..." $ do
   let dTree' = findDupModule args tree
   let au = allUnique dTree'
   let args' = args{skip_resolver = Just $ au && (fromJust $ skip_resolver args)}
