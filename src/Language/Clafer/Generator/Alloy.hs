@@ -99,8 +99,8 @@ timeSig = "Time"
 -- Alloy code generation
 -- 07th Mayo 2012 Rafael Olaechea
 --      Added Logic to print a goal block in case there is at least one goal.
-genModule :: ClaferArgs -> (IModule, GEnv) -> (Result, [(Span, IrTrace)])
-genModule    claferargs    (imodule, _)     = trace (printModuleConstraints imodule) $ (flatten output, filter ((/= NoTrace) . snd) $ mapLineCol output)
+genModule :: ClaferArgs -> (IModule, GEnv) -> (Result, [(Span, IrTrace)]) -- To print module constraints: trace (printModuleConstraints imodule) $
+genModule    claferargs    (imodule, _)     =  (flatten output, filter ((/= NoTrace) . snd) $ mapLineCol output)
   where
   output = header claferargs imodule +++ (cconcat $ map (genDeclaration claferargs) (mDecls imodule)) +++
        if length goals_list > 0 then
